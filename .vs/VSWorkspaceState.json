@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\configs",
+    "\\scripts",
+    "\\src",
+    "\\src\\Methods",
+    "\\src\\Methods\\FasterGS",
+    "\\src\\Methods\\FasterGS\\FasterGSCudaBackend",
+    "\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend",
+    "\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization",
+    "\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include"
+  ],
+  "SelectedNode": "\\scripts\\inference.py",
+  "PreviewInSolutionExplorer": false
+}

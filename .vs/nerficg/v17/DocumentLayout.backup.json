@@ -1,0 +1,290 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Bachelorproef\\Github\\nerficg\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\kernels_inference.cuh||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\kernels_inference.cuh||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\rasterization.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\rasterization.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\rasterization_api.cu||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\rasterization_api.cu||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\inference.cu||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\inference.cu||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\inference.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\inference.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\configs\\fastergs_lego.yaml||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:configs\\fastergs_lego.yaml||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\scripts\\inference.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:scripts\\inference.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|c:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\Base\\Renderer.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\Base\\Renderer.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\Renderer.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\Renderer.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|c:\\Users\\larsm\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\torch\\autograd\\function.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\bindings.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\bindings.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_api.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_api.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_config.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_config.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\Trainer.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\Methods\\FasterGS\\Trainer.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\scripts\\gui.py||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:scripts\\gui.py||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Bachelorproef\\Github\\nerficg\\configs\\nerf_lego.yaml||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:configs\\nerf_lego.yaml||{8B382828-6202-11D1-8870-0000F87579D2}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 9,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "Renderer.py",
+              "DocumentMoniker": "c:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\Base\\Renderer.py",
+              "RelativeDocumentMoniker": "src\\Methods\\Base\\Renderer.py",
+              "ToolTip": "c:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\Base\\Renderer.py",
+              "RelativeToolTip": "src\\Methods\\Base\\Renderer.py",
+              "ViewState": "AgIAAO4AAAAAAAAAAAAowPsAAAAeAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHfSURBVDhPpZCxaxNhGMZ/9zVJaUuDUlq1FBWLZBFTCXo4BFyU1qGKi4OkIHhkzF/g0KF00M2lR9YUdDDQQVAcJILoQUd1UNRmkhoRm8RL777v7nOoCZd4AcEH3uF5nvd73vd74X\u002BgtTai3LIsHeWDEEJct217a1DvwbIs7bpubFUqFW3b9naxWLwWfSOipAvHcfqqi0KhkMtms3cty1rsaomeG4FpmoMSANVqlXQ6nQMWgacMC4hOBchduEj\u002ByjKjScGh8SS1Wq3nxQZEN3j1eY/Vrfe8rTeQvsf89ARLS1cz5XIZ/uUGXxptQiVRUhJIybudXaZn52a7vbEBpmkyNb/A69YM9W8tDEJOTI2hpI\u002BSkvOZH2f13sNAB\u002B07sV9wHIdH9Unquz9RvoeUPtL3UFISKkky\u002BAT7HwTi6FpsgGma3N9\u002Bg5I\u002BKaFZyU8wOpJChwHnjiuE9wKCXyC/zsQGOI7DeELjtiUPbgky6Wd/HA3KBelC4AIpNfQGl88cQ0mfI5PugRhKkM2DUk0INYwtPI/dAGAlf4rbl06T6DyBVgeCABJzYPhwcm0V8ICNvwJKpVIf37h3IxSyKVAuBMDIYQAMw1jvaxwGrYNl3Xq5o79vat3Y3Nedj4\u002B11je7/m\u002BXOuyzFtDhUgAAAABJRU5ErkJggg==",
+              "WhenOpened": "2026-02-27T12:28:35.026Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "inference.py",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\scripts\\inference.py",
+              "RelativeDocumentMoniker": "scripts\\inference.py",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\scripts\\inference.py",
+              "RelativeToolTip": "scripts\\inference.py",
+              "ViewState": "AgIAADMAAAAAAAAAAAAAAJAAAAAWAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHfSURBVDhPpZCxaxNhGMZ/9zVJaUuDUlq1FBWLZBFTCXo4BFyU1qGKi4OkIHhkzF/g0KF00M2lR9YUdDDQQVAcJILoQUd1UNRmkhoRm8RL777v7nOoCZd4AcEH3uF5nvd73vd74X\u002BgtTai3LIsHeWDEEJct217a1DvwbIs7bpubFUqFW3b9naxWLwWfSOipAvHcfqqi0KhkMtms3cty1rsaomeG4FpmoMSANVqlXQ6nQMWgacMC4hOBchduEj\u002ByjKjScGh8SS1Wq3nxQZEN3j1eY/Vrfe8rTeQvsf89ARLS1cz5XIZ/uUGXxptQiVRUhJIybudXaZn52a7vbEBpmkyNb/A69YM9W8tDEJOTI2hpI\u002BSkvOZH2f13sNAB\u002B07sV9wHIdH9Unquz9RvoeUPtL3UFISKkky\u002BAT7HwTi6FpsgGma3N9\u002Bg5I\u002BKaFZyU8wOpJChwHnjiuE9wKCXyC/zsQGOI7DeELjtiUPbgky6Wd/HA3KBelC4AIpNfQGl88cQ0mfI5PugRhKkM2DUk0INYwtPI/dAGAlf4rbl06T6DyBVgeCABJzYPhwcm0V8ICNvwJKpVIf37h3IxSyKVAuBMDIYQAMw1jvaxwGrYNl3Xq5o79vat3Y3Nedj4\u002B11je7/m\u002BXOuyzFtDhUgAAAABJRU5ErkJggg==",
+              "WhenOpened": "2026-02-27T12:26:37.485Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "function.py",
+              "DocumentMoniker": "c:\\Users\\larsm\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\torch\\autograd\\function.py",
+              "RelativeDocumentMoniker": "..\\..\\..\\Users\\larsm\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\torch\\autograd\\function.py",
+              "ToolTip": "c:\\Users\\larsm\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\torch\\autograd\\function.py",
+              "RelativeToolTip": "..\\..\\..\\Users\\larsm\\AppData\\Local\\Programs\\Python\\Python310\\Lib\\site-packages\\torch\\autograd\\function.py",
+              "ViewState": "AgIAACECAAAAAAAAAAArwDECAAAsAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHfSURBVDhPpZCxaxNhGMZ/9zVJaUuDUlq1FBWLZBFTCXo4BFyU1qGKi4OkIHhkzF/g0KF00M2lR9YUdDDQQVAcJILoQUd1UNRmkhoRm8RL777v7nOoCZd4AcEH3uF5nvd73vd74X\u002BgtTai3LIsHeWDEEJct217a1DvwbIs7bpubFUqFW3b9naxWLwWfSOipAvHcfqqi0KhkMtms3cty1rsaomeG4FpmoMSANVqlXQ6nQMWgacMC4hOBchduEj\u002ByjKjScGh8SS1Wq3nxQZEN3j1eY/Vrfe8rTeQvsf89ARLS1cz5XIZ/uUGXxptQiVRUhJIybudXaZn52a7vbEBpmkyNb/A69YM9W8tDEJOTI2hpI\u002BSkvOZH2f13sNAB\u002B07sV9wHIdH9Unquz9RvoeUPtL3UFISKkky\u002BAT7HwTi6FpsgGma3N9\u002Bg5I\u002BKaFZyU8wOpJChwHnjiuE9wKCXyC/zsQGOI7DeELjtiUPbgky6Wd/HA3KBelC4AIpNfQGl88cQ0mfI5PugRhKkM2DUk0INYwtPI/dAGAlf4rbl06T6DyBVgeCABJzYPhwcm0V8ICNvwJKpVIf37h3IxSyKVAuBMDIYQAMw1jvaxwGrYNl3Xq5o79vat3Y3Nedj4\u002B11je7/m\u002BXOuyzFtDhUgAAAABJRU5ErkJggg==",
+              "WhenOpened": "2026-02-27T12:19:52.848Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "rasterization.py",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\rasterization.py",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\rasterization.py",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\rasterization.py",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\rasterization.py",
+              "ViewState": "AgIAADIAAAAAAAAAAAArwFIAAAAUAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHfSURBVDhPpZCxaxNhGMZ/9zVJaUuDUlq1FBWLZBFTCXo4BFyU1qGKi4OkIHhkzF/g0KF00M2lR9YUdDDQQVAcJILoQUd1UNRmkhoRm8RL777v7nOoCZd4AcEH3uF5nvd73vd74X\u002BgtTai3LIsHeWDEEJct217a1DvwbIs7bpubFUqFW3b9naxWLwWfSOipAvHcfqqi0KhkMtms3cty1rsaomeG4FpmoMSANVqlXQ6nQMWgacMC4hOBchduEj\u002ByjKjScGh8SS1Wq3nxQZEN3j1eY/Vrfe8rTeQvsf89ARLS1cz5XIZ/uUGXxptQiVRUhJIybudXaZn52a7vbEBpmkyNb/A69YM9W8tDEJOTI2hpI\u002BSkvOZH2f13sNAB\u002B07sV9wHIdH9Unquz9RvoeUPtL3UFISKkky\u002BAT7HwTi6FpsgGma3N9\u002Bg5I\u002BKaFZyU8wOpJChwHnjiuE9wKCXyC/zsQGOI7DeELjtiUPbgky6Wd/HA3KBelC4AIpNfQGl88cQ0mfI5PugRhKkM2DUk0INYwtPI/dAGAlf4rbl06T6DyBVgeCABJzYPhwcm0V8ICNvwJKpVIf37h3IxSyKVAuBMDIYQAMw1jvaxwGrYNl3Xq5o79vat3Y3Nedj4\u002B11je7/m\u002BXOuyzFtDhUgAAAABJRU5ErkJggg==",
+              "WhenOpened": "2026-02-27T10:05:49.727Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "fastergs_lego.yaml",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\configs\\fastergs_lego.yaml",
+              "RelativeDocumentMoniker": "configs\\fastergs_lego.yaml",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\configs\\fastergs_lego.yaml",
+              "RelativeToolTip": "configs\\fastergs_lego.yaml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003775|",
+              "WhenOpened": "2026-02-27T10:03:17.249Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "Renderer.py",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\Renderer.py",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\Renderer.py",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\Renderer.py",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\Renderer.py",
+              "ViewState": "AgIAAEEAAAAAAAAAAAAAAFUAAAAcAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHfSURBVDhPpZCxaxNhGMZ/9zVJaUuDUlq1FBWLZBFTCXo4BFyU1qGKi4OkIHhkzF/g0KF00M2lR9YUdDDQQVAcJILoQUd1UNRmkhoRm8RL777v7nOoCZd4AcEH3uF5nvd73vd74X\u002BgtTai3LIsHeWDEEJct217a1DvwbIs7bpubFUqFW3b9naxWLwWfSOipAvHcfqqi0KhkMtms3cty1rsaomeG4FpmoMSANVqlXQ6nQMWgacMC4hOBchduEj\u002ByjKjScGh8SS1Wq3nxQZEN3j1eY/Vrfe8rTeQvsf89ARLS1cz5XIZ/uUGXxptQiVRUhJIybudXaZn52a7vbEBpmkyNb/A69YM9W8tDEJOTI2hpI\u002BSkvOZH2f13sNAB\u002B07sV9wHIdH9Unquz9RvoeUPtL3UFISKkky\u002BAT7HwTi6FpsgGma3N9\u002Bg5I\u002BKaFZyU8wOpJChwHnjiuE9wKCXyC/zsQGOI7DeELjtiUPbgky6Wd/HA3KBelC4AIpNfQGl88cQ0mfI5PugRhKkM2DUk0INYwtPI/dAGAlf4rbl06T6DyBVgeCABJzYPhwcm0V8ICNvwJKpVIf37h3IxSyKVAuBMDIYQAMw1jvaxwGrYNl3Xq5o79vat3Y3Nedj4\u002B11je7/m\u002BXOuyzFtDhUgAAAABJRU5ErkJggg==",
+              "WhenOpened": "2026-02-27T09:50:30.269Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "inference.h",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\inference.h",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\inference.h",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\inference.h",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\inference.h",
+              "ViewState": "AgIAAAkAAAAAAAAAAAAAACUAAAAcAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-02-27T09:48:40.758Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "rasterization_api.cu",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\rasterization_api.cu",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\rasterization_api.cu",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\rasterization_api.cu",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\rasterization_api.cu",
+              "ViewState": "AgIAANIAAAAAAAAAAAAjwOwAAAAQAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-02-27T09:35:51.388Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "inference.cu",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\inference.cu",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\inference.cu",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\inference.cu",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\src\\inference.cu",
+              "ViewState": "AgIAAMYAAAAAAAAAAAAAANkAAAASAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-02-27T09:42:49.58Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "kernels_inference.cuh",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\kernels_inference.cuh",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\kernels_inference.cuh",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\kernels_inference.cuh",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\kernels_inference.cuh",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAASAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-02-27T09:38:08.716Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "bindings.cpp",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\bindings.cpp",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\bindings.cpp",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\bindings.cpp",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\torch_bindings\\bindings.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-02-27T11:02:12.29Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "rasterization_config.h",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_config.h",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_config.h",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_config.h",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_config.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-02-27T11:01:17.277Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "Trainer.py",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\Trainer.py",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\Trainer.py",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\Trainer.py",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\Trainer.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHfSURBVDhPpZCxaxNhGMZ/9zVJaUuDUlq1FBWLZBFTCXo4BFyU1qGKi4OkIHhkzF/g0KF00M2lR9YUdDDQQVAcJILoQUd1UNRmkhoRm8RL777v7nOoCZd4AcEH3uF5nvd73vd74X\u002BgtTai3LIsHeWDEEJct217a1DvwbIs7bpubFUqFW3b9naxWLwWfSOipAvHcfqqi0KhkMtms3cty1rsaomeG4FpmoMSANVqlXQ6nQMWgacMC4hOBchduEj\u002ByjKjScGh8SS1Wq3nxQZEN3j1eY/Vrfe8rTeQvsf89ARLS1cz5XIZ/uUGXxptQiVRUhJIybudXaZn52a7vbEBpmkyNb/A69YM9W8tDEJOTI2hpI\u002BSkvOZH2f13sNAB\u002B07sV9wHIdH9Unquz9RvoeUPtL3UFISKkky\u002BAT7HwTi6FpsgGma3N9\u002Bg5I\u002BKaFZyU8wOpJChwHnjiuE9wKCXyC/zsQGOI7DeELjtiUPbgky6Wd/HA3KBelC4AIpNfQGl88cQ0mfI5PugRhKkM2DUk0INYwtPI/dAGAlf4rbl06T6DyBVgeCABJzYPhwcm0V8ICNvwJKpVIf37h3IxSyKVAuBMDIYQAMw1jvaxwGrYNl3Xq5o79vat3Y3Nedj4\u002B11je7/m\u002BXOuyzFtDhUgAAAABJRU5ErkJggg==",
+              "WhenOpened": "2026-02-27T10:51:45.135Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "gui.py",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\scripts\\gui.py",
+              "RelativeDocumentMoniker": "scripts\\gui.py",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\scripts\\gui.py",
+              "RelativeToolTip": "scripts\\gui.py",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAjAAAAAAAAAA==",
+              "Icon": "00000000-0000-0000-0000-000000000000.000000|iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAHfSURBVDhPpZCxaxNhGMZ/9zVJaUuDUlq1FBWLZBFTCXo4BFyU1qGKi4OkIHhkzF/g0KF00M2lR9YUdDDQQVAcJILoQUd1UNRmkhoRm8RL777v7nOoCZd4AcEH3uF5nvd73vd74X\u002BgtTai3LIsHeWDEEJct217a1DvwbIs7bpubFUqFW3b9naxWLwWfSOipAvHcfqqi0KhkMtms3cty1rsaomeG4FpmoMSANVqlXQ6nQMWgacMC4hOBchduEj\u002ByjKjScGh8SS1Wq3nxQZEN3j1eY/Vrfe8rTeQvsf89ARLS1cz5XIZ/uUGXxptQiVRUhJIybudXaZn52a7vbEBpmkyNb/A69YM9W8tDEJOTI2hpI\u002BSkvOZH2f13sNAB\u002B07sV9wHIdH9Unquz9RvoeUPtL3UFISKkky\u002BAT7HwTi6FpsgGma3N9\u002Bg5I\u002BKaFZyU8wOpJChwHnjiuE9wKCXyC/zsQGOI7DeELjtiUPbgky6Wd/HA3KBelC4AIpNfQGl88cQ0mfI5PugRhKkM2DUk0INYwtPI/dAGAlf4rbl06T6DyBVgeCABJzYPhwcm0V8ICNvwJKpVIf37h3IxSyKVAuBMDIYQAMw1jvaxwGrYNl3Xq5o79vat3Y3Nedj4\u002B11je7/m\u002BXOuyzFtDhUgAAAABJRU5ErkJggg==",
+              "WhenOpened": "2026-02-27T10:44:11.202Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "rasterization_api.h",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_api.h",
+              "RelativeDocumentMoniker": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_api.h",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_api.h",
+              "RelativeToolTip": "src\\Methods\\FasterGS\\FasterGSCudaBackend\\FasterGSCudaBackend\\rasterization\\include\\rasterization_api.h",
+              "ViewState": "AgIAADUAAAAAAAAAAAAjwD8AAAAkAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-02-27T09:35:00.975Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "nerf_lego.yaml",
+              "DocumentMoniker": "C:\\Bachelorproef\\Github\\nerficg\\configs\\nerf_lego.yaml",
+              "RelativeDocumentMoniker": "configs\\nerf_lego.yaml",
+              "ToolTip": "C:\\Bachelorproef\\Github\\nerficg\\configs\\nerf_lego.yaml",
+              "RelativeToolTip": "configs\\nerf_lego.yaml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003775|",
+              "WhenOpened": "2026-02-27T09:55:26.445Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
