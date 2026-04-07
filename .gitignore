@@ -21,3 +21,8 @@ backup/
 .pytest_cache/
 imgui.ini
 __pycache__/
+
+*.npz
+*.ply
+output/
+SG_test/npz_files/
