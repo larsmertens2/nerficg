@@ -26,4 +26,4 @@ __pycache__/
 *.npz
 *.ply
 output/
-SG_test/npz_files/
+SG_test/wandb/*
