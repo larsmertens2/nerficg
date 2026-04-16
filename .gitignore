@@ -10,6 +10,7 @@
 *.egg-info
 *.ipynb
 *.log
+*.npz
 !resources/*
 .vscode
 .DS_Store

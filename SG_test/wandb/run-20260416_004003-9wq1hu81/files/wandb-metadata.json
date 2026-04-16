@@ -1,0 +1,40 @@
+{
+  "os": "Windows-10-10.0.26200-SP0",
+  "python": "CPython 3.11.15",
+  "startedAt": "2026-04-15T22:40:03.180660Z",
+  "program": "C:\\Bachelorproef\\Github\\nerficg\\SG_test\\train_sv.py",
+  "codePath": "SG_test\\train_sv.py",
+  "codePathLocal": "train_sv.py",
+  "git": {
+    "remote": "https://github.com/larsmertens2/nerficg.git",
+    "commit": "281ee1ddd7189e0d1bae50d6f2f2729b03169c7d"
+  },
+  "email": "lars_mertens@student.uhasselt.be",
+  "root": "C:\\Bachelorproef\\Github\\nerficg\\SG_test",
+  "host": "LAPTOP-AQ4JG4QJ",
+  "executable": "C:\\Users\\larsm\\miniconda3\\envs\\nerficg\\python.exe",
+  "cpu_count": 6,
+  "cpu_count_logical": 12,
+  "gpu": "NVIDIA GeForce RTX 3050 Laptop GPU",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "510770802688",
+      "used": "500941533184"
+    }
+  },
+  "memory": {
+    "total": "14877257728"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 3050 Laptop GPU",
+      "memoryTotal": "4294967296",
+      "cudaCores": 2048,
+      "architecture": "Ampere",
+      "uuid": "GPU-eb439d21-3d93-d969-c5f6-80eba5151e76"
+    }
+  ],
+  "cudaVersion": "13.1",
+  "writerId": "q77qgexsw7gqokw6yedraudtd2z1va62"
+}
