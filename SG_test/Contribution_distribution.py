@@ -16,7 +16,7 @@ def inspect_contributions(file_path="npz_files/camera_data.npz"):
     total_active = 0
     counts_under = {t: 0 for t in thresholds}
     all_positive_samples = [] 
-    global_max = 0.0  # <--- Nieuwe variabele voor de max
+    global_max = 0.0  
 
     chunk_size = 5000  
     
