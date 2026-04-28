@@ -6,29 +6,29 @@ import wandb
 import os
 
 class MultiSGVisibility(nn.Module):
-    def __init__(self, num_gaussians, num_lobes, device):
+    def __init__(self, num_gaussians, num_lobes, device, bias):
         super().__init__()
         self.num_lobes = num_lobes
-        # We initialiseren met een kleine variantie om de lobes te verspreiden
+        self.bias = bias # Sla de bias op
         self.axis_raw = nn.Parameter(torch.randn(num_gaussians, num_lobes, 3, device=device))
         self.sharpness_raw = nn.Parameter(torch.full((num_gaussians, num_lobes), 5.0, device=device))
-        self.amplitude_raw = nn.Parameter(torch.full((num_gaussians, num_lobes), 0.1, device=device))
+        self.amplitude_raw = nn.Parameter(torch.full((num_gaussians, num_lobes), 4.0, device=device))
 
-    def forward(self, batch_indices, cam_pos, g_pos_batch):
-        # A. Richting van camera naar Gaussian
+    def forward(self, batch_indices, cam_pos, g_pos_batch): 
         vec = g_pos_batch.unsqueeze(0) - cam_pos.unsqueeze(1)
         dist = torch.norm(vec, dim=-1, keepdim=True) + 1e-7
-        view_dirs = vec / dist # [Cams, Batch, 3]
+        view_dirs = vec / dist 
 
-        # B. Parametrisatie (Softplus voor positiviteit)
         axis = torch.nn.functional.normalize(self.axis_raw[batch_indices], dim=-1)
         sharpness = torch.nn.functional.softplus(self.sharpness_raw[batch_indices]) 
         amplitude = torch.nn.functional.softplus(self.amplitude_raw[batch_indices])
 
         dot = torch.einsum('cbj,blj->cbl', view_dirs, axis)
         exponent = sharpness * (dot - 1.0)
-        # Sommeer over de verschillende lobes
-        preds = torch.sum(amplitude * torch.exp(exponent), dim=-1)
+        logits = torch.sum(amplitude * torch.exp(exponent), dim=-1)
+
+        # Gebruik de opgeslagen bias
+        preds = torch.sigmoid(logits - self.bias)
 
         return preds, sharpness, amplitude
 
@@ -53,13 +53,14 @@ def train():
         "batch_size": 2500,
         "threshold": 0.01,
         "epochs": 1000,
-        "fn_weight": 5.0 # Penalty voor het missen van zichtbare Gaussians
+        "fn_weight": 5.0, # Penalty voor het missen van zichtbare Gaussiansµ
+        "bias": 4.6
     }
     
-    run = wandb.init(project="sg_visibility_v2", config=config)
+    run = wandb.init(project="sg_visibility_v3", config=config)
     c = wandb.config
 
-    model = MultiSGVisibility(c.num_gaussians, c.num_lobes, device)
+    model = MultiSGVisibility(c.num_gaussians, c.num_lobes, device, c.bias)
     
     # Optimizer met verschillende LR groepen (net als in de Voronoi versie)
     optimizer = optim.Adam([
@@ -151,7 +152,8 @@ def train():
             "sharpness": torch.nn.functional.softplus(model.sharpness_raw).cpu().numpy(),
             "amplitude": torch.nn.functional.softplus(model.amplitude_raw).cpu().numpy(),
             "num_lobes": model.num_lobes,
-            "threshold": c.threshold
+            "threshold": c.threshold,
+            "bias": c.bias
         }
     
     np.savez(save_path, **results)

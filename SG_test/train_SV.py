@@ -41,11 +41,11 @@ def train():
 
     # --- Config ---
     config = {
-        "num_sites": 8,
+        "num_sites": 10,
         "lr": 0.001,
         "batch_size": 2500,
         "epochs": 1000,
-        "threshold": 0.1, # beste volgens dubbele render
+        "threshold": 0.05, 
         "startTemp": 5.0
     }
     
