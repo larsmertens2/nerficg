@@ -49,6 +49,7 @@ with utils.DiscoverSourcePath():
     from Logging import Logger
     from Datasets.utils import load_images, list_sorted_files, list_sorted_directories
     from Optim.MaskedMetrics import mPSNR, mSSIM, mLPIPS
+    from Methods.NVGSViewer.flip_loss import LDRFLIPLoss
 
 
 """
@@ -63,6 +64,7 @@ known_metrics: dict[str, tuple[Callable, Callable, bool]] = {
     'mPSNR': (mPSNR, lambda value: f'{value:.2f}', True),
     'mSSIM': (mSSIM, lambda value: f'{value:.3f}', True),
     'mLPIPS': (mLPIPS(), lambda value: f'{value:.3f}', True),
+    'FLIP': (LDRFLIPLoss(), lambda value: f'{value:.4f}', False),
     'LPIPS_vgg': (torchmetrics.image.lpip.LearnedPerceptualImagePatchSimilarity(net_type='vgg', normalize=True).cuda(), lambda value: f'{value:.3f}', False),
     'LPIPS_alex': (torchmetrics.image.lpip.LearnedPerceptualImagePatchSimilarity(net_type='alex', normalize=True).cuda(), lambda value: f'{value:.3f}', False),
     'LPIPS_squeeze': (torchmetrics.image.lpip.LearnedPerceptualImagePatchSimilarity(net_type='squeeze', normalize=True).cuda(), lambda value: f'{value:.3f}', False),
@@ -73,11 +75,13 @@ def write_empty_config_file(path: Path):
     """write and a default config file to the given base directory."""
     # get scenes and methods
     scenes = list_sorted_directories(path)
+    if 'NVGSViewer' in scenes:
+        scenes.remove('NVGSViewer')
     methods = list_sorted_directories(path / scenes[0])
     methods = [method for method in methods if method != 'gt' and not method.startswith('_')]
     # generate a default config dict
     example_config_dict = {
-        'METRICS': ['PSNR', 'SSIM', 'LPIPS_vgg'],
+        'METRICS': ['PSNR', 'SSIM', 'FLIP'],
         'SCENES': scenes,
         'METHODS': methods,
     }
@@ -99,17 +103,21 @@ def compute_metrics(
     image_filenames = [name for name in list_sorted_files(results_path) if name.endswith('.png') or name.endswith('.jpg') or name.endswith('.jpeg')]
     results = load_images([
         str(results_path / name) for name in image_filenames
-    ], scale_factor=None, num_threads=1, desc=f'loading {method_name} images')[0]
+    ], scale_factor=None, num_threads=4, desc=f'loading {method_name} images')[0]
     metric_values = [[] for _ in metrics]
     for result, target, mask in Logger.log_progress(zip(results, targets, mask_images), total=len(results), desc=f'calculate {method_name} metrics', leave=False):
         for metric, values, with_mask in zip(metrics, metric_values, metric_requires_mask):
+            value = None
             if with_mask:
                 if mask is None:
-                    values.append(0.0)
+                    value = 0.0
                 else:
-                    values.append(metric(result.cuda(), target.cuda(), mask.cuda()))
+                    value = metric(result, target, mask)
             else:
-                values.append(metric(result[None].cuda(), target[None].cuda()).item())
+                value = metric(result[None].cuda(), target[None].cuda()).item()
+            if isinstance(metric, torchmetrics.image.PeakSignalNoiseRatio):
+                value = min(value, 116.069265998)  # +/- 1 error in all channels of a 1080p RGB image
+            values.append(value)
     return [mean(values) for values in metric_values]
 
 
@@ -129,6 +137,7 @@ def main(root_dir: Path, config_only: bool):
     Logger.log_info(f'processing results for {root_dir.name}')
     scene_names = config['SCENES']
     gt_name = 'gt'
+    print(f'Currently using {gt_name} as the ground truth directory')
     method_names = config['METHODS']
     metric_names = config['METRICS']
     for metric_name in metric_names:
@@ -152,12 +161,12 @@ def main(root_dir: Path, config_only: bool):
             return
         gt_images = load_images([
             str(gt_path / name) for name in list_sorted_files(gt_path) if name.endswith('.png') or name.endswith('.jpg') or name.endswith('.jpeg')
-        ], scale_factor=None, num_threads=1, desc='loading reference images')[0]
+        ], scale_factor=None, num_threads=4, desc='loading reference images')[0]
         mask_path = scene_path / '_mask'
         if mask_path.exists():
             mask_images = load_images([
                 str(mask_path / name) for name in list_sorted_files(mask_path) if name.endswith('.png') or name.endswith('.jpg') or name.endswith('.jpeg')
-            ], scale_factor=None, num_threads=1, desc='loading masks')[0]
+            ], scale_factor=None, num_threads=4, desc='loading masks')[0]
             mask_images = [mask_image[:, :1] for mask_image in mask_images]
         else:
             if max(metric_requires_mask):

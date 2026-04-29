@@ -3,119 +3,186 @@ import matplotlib.pyplot as plt
 import torch
 from scipy.interpolate import griddata
 from matplotlib.colors import ListedColormap
+from pathlib import Path
 
-def compare_visibility_binary_grids(file_cam, file_gauss, file_voronoi, gaussian_index, threshold_cam=0.1, threshold_voronoi=0.5):
-    # --- 1. Data Laden ---
-    try:
-        cam_data = np.load(file_cam, allow_pickle=True)
-        gauss_data = np.load(file_gauss)
-        voronoi_data = np.load(file_voronoi)
-    except FileNotFoundError:
-        print("Fout: Kon een of meer bestanden niet vinden.")
-        return
 
-    target_pos = gauss_data['means'][gaussian_index]
-    cam_positions = cam_data['camera_positions']
-    contributions = cam_data['contributions'][:, gaussian_index]
-    
-    sites = torch.tensor(voronoi_data['sites'][gaussian_index])
-    values = torch.tensor(voronoi_data['values'][gaussian_index])
+BASE_DIR = Path(__file__).resolve().parent
 
-    # --- 2. Camera Data verwerken naar Binair Grid (Ground Truth) ---
-    
-    # BELANGRIJK: Gebruik DEZELFDE vector als in de training: Camera -> Gaussian
-    directions_cam = target_pos - cam_positions 
-    dist = np.linalg.norm(directions_cam, axis=1)
-    # Voorkom delen door nul
-    valid_mask = dist > 0
-    norm_dir = directions_cam[valid_mask] / dist[valid_mask, np.newaxis]
-    
-    # Sferische coördinaten in graden berekenen
-    cam_lon = np.degrees(np.arctan2(norm_dir[:, 1], norm_dir[:, 0]))
-    cam_lat = np.degrees(np.arcsin(norm_dir[:, 2]))
-    
-    # Pas de threshold toe: 1.0 (Groen/Zichtbaar) of 0.0 (Rood/Geculd)
-    cam_binair = (contributions[valid_mask] > threshold_cam).astype(float)
 
-    # Definieer het grid voor de visualisatie (resolutie kan verhoogd worden)
-    res_lat, res_lon = 500, 1000
-    grid_x, grid_y = np.mgrid[-180:180:1000j, -90:90:500j]
+def _resolve_path(path):
+    path = Path(path)
+    return path if path.is_absolute() else BASE_DIR / path
 
-    # Interpoleer de losse punten naar het grid met 'nearest' methode voor harde grenzen
-    grid_cam_binair = griddata((cam_lon, cam_lat), cam_binair, (grid_x, grid_y), method='nearest')
-    
-    # Gaten opvullen (bijv. bij de polen waar geen camera's zijn) - we vullen ze met rood (geculd)
-    grid_cam_binair = np.nan_to_num(grid_cam_binair, nan=0.0)
 
-    # --- 3. Voronoi Data verwerken naar Binair Grid (Model Prediction) ---
-    
-    # Maak sferische grid-vectoren (omega) die overeenkomen met het visualisatie-grid
-    lat_range = np.linspace(-np.pi/2, np.pi/2, res_lat)
+def _load_camera_positions(cam_data):
+    if "camera_positions" in cam_data:
+        return cam_data["camera_positions"]
+    if "camera_c2w" in cam_data:
+        return cam_data["camera_c2w"][:, :3, 3]
+    raise KeyError("camera_data.npz mist camera_positions en camera_c2w")
+
+
+def _to_lon_lat(vectors):
+    vectors = np.asarray(vectors)
+    norms = np.linalg.norm(vectors, axis=-1, keepdims=True)
+    norms = np.maximum(norms, 1e-8)
+    normalized = vectors / norms
+    lon = np.degrees(np.arctan2(normalized[..., 1], normalized[..., 0]))
+    lat = np.degrees(np.arcsin(np.clip(normalized[..., 2], -1.0, 1.0)))
+    return lon, lat
+
+
+def _lon_lat_grid(res_lat=500, res_lon=1000):
+    lat_range = np.linspace(-np.pi / 2, np.pi / 2, res_lat)
     lon_range = np.linspace(-np.pi, np.pi, res_lon)
     lon_grid, lat_grid = np.meshgrid(lon_range, lat_range)
-
-    # omega is de richting van cam naar gaussian
     x = np.cos(lat_grid) * np.cos(lon_grid)
     y = np.cos(lat_grid) * np.sin(lon_grid)
     z = np.sin(lat_grid)
-    
-    omega = torch.tensor(np.stack([x, y, z], axis=-1).reshape(-1, 3), dtype=torch.float32)
-    
+    return torch.tensor(np.stack([x, y, z], axis=-1).reshape(-1, 3), dtype=torch.float32)
+
+
+def _predict_sg_grid(model_data, gaussian_index, omega, res_lat, res_lon, threshold_model):
+    axis = torch.tensor(model_data["axis"][gaussian_index], dtype=torch.float32)
+    sharpness = torch.tensor(model_data["sharpness"][gaussian_index], dtype=torch.float32)
+    amplitude = torch.tensor(model_data["amplitude"][gaussian_index], dtype=torch.float32)
+    bias = float(model_data["bias"]) if "bias" in model_data else 4.6
+
+    with torch.no_grad():
+        axis = torch.nn.functional.normalize(axis, dim=-1)
+        dot = torch.matmul(omega, axis.T)
+        logits = torch.sum(amplitude * torch.exp(sharpness * (dot - 1.0)), dim=-1)
+        preds = torch.sigmoid(logits - bias)
+
+    grid_binary = (preds > threshold_model).float().reshape(res_lat, res_lon).numpy()
+    overlay_points = _to_lon_lat(axis.detach().cpu().numpy())
+    overlay_sizes = 90.0 + 160.0 * (
+        model_data["amplitude"][gaussian_index] / (np.max(model_data["amplitude"][gaussian_index]) + 1e-8)
+    )
+    return grid_binary, overlay_points, overlay_sizes, "SG Lobes", f"Spherical Gaussian Prediction (Model Value > {threshold_model})"
+
+
+def _predict_sv_grid(model_data, gaussian_index, omega, res_lat, res_lon, threshold_model):
+    sites = torch.tensor(model_data["sites"][gaussian_index], dtype=torch.float32)
+    values = torch.tensor(model_data["values"][gaussian_index], dtype=torch.float32)
+
     with torch.no_grad():
         logits = torch.matmul(omega, sites.T)
         weights = torch.nn.functional.softmax(logits, dim=-1)
         preds = torch.sum(weights * values, dim=-1)
-    
-    # Pas Voronoi threshold toe
-    grid_voronoi_binair = (preds > threshold_voronoi).float().reshape(res_lat, res_lon).numpy()
 
-    # --- 4. Plotten ---
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 14), sharex=True, sharey=True)
-    
-    # Definieer de rood-groene colormap
-    red_green_map = ListedColormap(['#e74c3c', '#2ecc71']) # [Rood, Groen]
+    grid_binary = (preds > threshold_model).float().reshape(res_lat, res_lon).numpy()
+    overlay_points = _to_lon_lat(sites.detach().cpu().numpy())
+    return grid_binary, overlay_points, 200, "Voronoi Sites", f"Spherical Voronoi Prediction (Model Value > {threshold_model})"
 
-    # Subplot 1: Interpolated Ground Truth
-    im1 = ax1.imshow(grid_cam_binair.T, extent=[-180, 180, -90, 90], origin='lower', 
-                     cmap=red_green_map, aspect='auto', interpolation='none')
-    ax1.set_title(f"Ground Truth Binaire Heatmap (Cameras Contribution > {threshold_cam})\n(Interpolated: Nearest Neighbor)", fontsize=14)
-    
-    # Optioneel: Plot de originele camerapunten er héél klein overheen ter controle
-    # ax1.scatter(cam_lon, cam_lat, c='black', s=1, alpha=0.1)
 
-    # Subplot 2: Voronoi Prediction
-    im2 = ax2.imshow(grid_voronoi_binair, extent=[-180, 180, -90, 90], origin='lower', 
-                     cmap=red_green_map, aspect='auto', interpolation='none')
-    
-    # Sites terug naar lon/lat voor visualisatie
-    site_lon = np.degrees(np.arctan2(sites[:, 1], sites[:, 0]))
-    site_lat = np.degrees(np.arcsin(sites[:, 2] / torch.norm(sites, dim=-1)))
-    ax2.scatter(site_lon, site_lat, c='white', edgecolors='black', s=200, marker='*', label='Voronoi Sites')
-    
-    ax2.set_title(f"Spherical Voronoi Prediction (Model Value > {threshold_voronoi})\n(Hard Boundaries)", fontsize=14)
+def compare_visibility_binary_grids(
+    file_cam,
+    file_gauss,
+    file_sg,
+    file_sv,
+    gaussian_index,
+    threshold_cam=0.1,
+    threshold_sg=0.5,
+    threshold_sv=0.5,
+):
+    try:
+        cam_data = np.load(_resolve_path(file_cam), allow_pickle=True)
+        gauss_data = np.load(_resolve_path(file_gauss))
+        sg_data = np.load(_resolve_path(file_sg))
+        sv_data = np.load(_resolve_path(file_sv))
+    except FileNotFoundError as exc:
+        print(f"Fout: Kon een of meer bestanden niet vinden: {exc}")
+        return
+
+    target_pos = gauss_data["means"][gaussian_index]
+    cam_positions = _load_camera_positions(cam_data)
+    contributions = cam_data["contributions"][:, gaussian_index]
+
+    directions_cam = target_pos - cam_positions
+    dist = np.linalg.norm(directions_cam, axis=1)
+    valid_mask = dist > 0
+    norm_dir = directions_cam[valid_mask] / dist[valid_mask, np.newaxis]
+    cam_lon, cam_lat = _to_lon_lat(norm_dir)
+    cam_binary = (contributions[valid_mask] > threshold_cam).astype(float)
+
+    res_lat, res_lon = 500, 1000
+    grid_x, grid_y = np.mgrid[-180:180:1000j, -90:90:500j]
+    grid_cam_binary = griddata((cam_lon, cam_lat), cam_binary, (grid_x, grid_y), method="nearest")
+    grid_cam_binary = np.nan_to_num(grid_cam_binary, nan=0.0)
+
+    omega = _lon_lat_grid(res_lat=res_lat, res_lon=res_lon)
+    sg_binary, sg_overlay, sg_sizes, sg_label, sg_title = _predict_sg_grid(
+        sg_data, gaussian_index, omega, res_lat, res_lon, threshold_sg
+    )
+    sv_binary, sv_overlay, sv_sizes, sv_label, sv_title = _predict_sv_grid(
+        sv_data, gaussian_index, omega, res_lat, res_lon, threshold_sv
+    )
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(16, 20), sharex=True, sharey=True)
+    red_green_map = ListedColormap(["#e74c3c", "#2ecc71"])
+
+    ax1.imshow(
+        grid_cam_binary.T,
+        extent=[-180, 180, -90, 90],
+        origin="lower",
+        cmap=red_green_map,
+        aspect="auto",
+        interpolation="none",
+    )
+    ax1.set_title(
+        f"Ground Truth Binary Heatmap (Camera Contribution > {threshold_cam})\n(Interpolated: Nearest Neighbor)",
+        fontsize=14,
+    )
+
+    ax2.imshow(
+        sg_binary,
+        extent=[-180, 180, -90, 90],
+        origin="lower",
+        cmap=red_green_map,
+        aspect="auto",
+        interpolation="none",
+    )
+    sg_x, sg_y = sg_overlay
+    ax2.scatter(sg_x, sg_y, c="white", edgecolors="black", s=sg_sizes, marker="*", label=sg_label)
+    ax2.set_title(sg_title + "\n(Hard Boundaries)", fontsize=14)
     ax2.legend()
 
-    # Algemene opmaak
-    for ax in [ax1, ax2]:
+    ax3.imshow(
+        sv_binary,
+        extent=[-180, 180, -90, 90],
+        origin="lower",
+        cmap=red_green_map,
+        aspect="auto",
+        interpolation="none",
+    )
+    sv_x, sv_y = sv_overlay
+    ax3.scatter(sv_x, sv_y, c="white", edgecolors="black", s=sv_sizes, marker="*", label=sv_label)
+    ax3.set_title(sv_title + "\n(Hard Boundaries)", fontsize=14)
+    ax3.legend()
+
+    for ax in [ax1, ax2, ax3]:
         ax.set_xlim(-180, 180)
         ax.set_ylim(-90, 90)
         ax.set_ylabel("Latitude (Degrees)", fontsize=12)
-        ax.grid(True, alpha=0.2, linestyle='--')
-        ax.axhline(0, color='black', lw=1, alpha=0.5) # Evenaar
-        ax.axvline(0, color='black', lw=1, alpha=0.5) # Nulmeridiaan
+        ax.grid(True, alpha=0.2, linestyle="--")
+        ax.axhline(0, color="black", lw=1, alpha=0.5)
+        ax.axvline(0, color="black", lw=1, alpha=0.5)
         ax.set_xticks(np.arange(-180, 181, 45))
         ax.set_yticks(np.arange(-90, 91, 30))
 
-    ax2.set_xlabel("Longitude (Degrees)", fontsize=12)
+    ax3.set_xlabel("Longitude (Degrees)", fontsize=12)
     plt.tight_layout()
     plt.show()
 
-# Run de vergelijking met binaire grids
+
 compare_visibility_binary_grids(
-    file_cam="npz_files/camera_data.npz", 
-    file_gauss="npz_files/gaussians_atlas.npz", 
-    file_voronoi="npz_files/sv_s8_t0_1_temp5.npz",
-    gaussian_index=250, 
-    threshold_cam=0.1,         # Drempel voor grondwaarheid
-    threshold_voronoi=0.5     # Drempel voor modelvoorspelling
+    file_cam=BASE_DIR / "npz_files/camera_data.npz",
+    file_gauss=BASE_DIR / "npz_files/gaussians_atlas.npz",
+    file_sg=BASE_DIR / "npz_files/SG_0_1.npz",
+    file_sv=BASE_DIR / "npz_files/sv_s8_t0_1_temp5.npz",
+    gaussian_index=100,
+    threshold_cam=0.1,
+    threshold_sg=0.5,
+    threshold_sv=0.5,
 )
