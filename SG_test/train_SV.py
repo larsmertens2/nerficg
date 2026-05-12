@@ -3,7 +3,11 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import wandb
-import os
+from pathlib import Path
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+NPZ_ROOT = SCRIPT_DIR / "npz_files"
 
 class SphericalVoronoi(nn.Module):
     def __init__(self, num_gaussians, num_sites, startTemp):
@@ -36,25 +40,43 @@ class SphericalVoronoi(nn.Module):
 
         return preds
 
-def train():
+def _iter_model_roots():
+    model_roots = [
+        path for path in sorted(NPZ_ROOT.iterdir())
+        if path.is_dir() and (path / "camera_data.npz").exists() and (path / "gaussians_atlas.npz").exists()
+    ]
+    if not model_roots:
+        raise FileNotFoundError(f"Geen geldige modelmappen gevonden in {NPZ_ROOT}")
+    return model_roots
+
+
+def train(treshhold, sites, model_root: Path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # --- Config ---
     config = {
-        "num_sites": 10,
+        "num_sites": sites,
         "lr": 0.001,
-        "batch_size": 2500,
+        "batch_size": 15000,
+        "cams_per_batch": 100,
         "epochs": 1000,
-        "threshold": 0.05, 
+        "threshold": treshhold, 
         "startTemp": 5.0
     }
     
-    run = wandb.init(project="voronoi_culling_v6", config=config)
+    t_str = str(treshhold).replace('.', '_')
+    run_name = f"SV_{model_root.name}_s{config['num_sites']}_t{t_str}_temp{str(config['startTemp']).replace('.', '_')}"
+    run = wandb.init(
+        project="voronoi_culling_v8", 
+        config=config,
+        name=run_name,  
+        reinit=True     
+    )
     c = wandb.config
 
     # --- Data Laden ---
-    cam_data = np.load("npz_files/camera_data.npz")
-    g_data = np.load("npz_files/gaussians_atlas.npz")
+    cam_data = np.load(model_root / "camera_data.npz")
+    g_data = np.load(model_root / "gaussians_atlas.npz")
     
     cam_pos = torch.tensor(cam_data["camera_c2w"][:, :3, 3], dtype=torch.float32).to(device)
     targets = torch.tensor(cam_data["contributions"], dtype=torch.float32).to(device)
@@ -65,11 +87,11 @@ def train():
     optimizer = optim.Adam([
         {
             "params": model.sites_raw, 
-            "lr": c.lr * 1.0, # Iets voorzichtiger voor de geometrie
+            "lr": c.lr * 1.0, 
         },
         {
             "params": model.values_raw, 
-            "lr": c.lr * 2.0 # Agressiever voor de zichtbaarheid-labels
+            "lr": c.lr * 2.0 
         }
     ], lr=c.lr)
 
@@ -80,27 +102,37 @@ def train():
                                                      patience=20)
 
     # --- Training Loop ---
+    num_total_cams = cam_pos.shape[0]
+
     for epoch in range(c.epochs):
         indices = torch.randperm(num_gaussians, device=device)
         epoch_loss = 0
-        
-        # Metrics aggregators
-        total_fn = 0  # Gaten (Zou zichtbaar moeten zijn, maar is geculd)
-        total_fp = 0  # Te veel (Zou geculd moeten worden, maar blijft zichtbaar)
-        total_pixels = 0
+        total_fn, total_fp, total_pixels = 0, 0, 0
 
         for i in range(0, num_gaussians, c.batch_size):
             optimizer.zero_grad()
             
+            # 1. Selecteer Gaussian batch
             idx = indices[i : i + c.batch_size]
-            target_batch = (targets[:, idx] > c.threshold).float() # [Cams, Batch]
+            g_pos_batch = g_pos_all[idx]
             
+            # 2. CAMERA SAMPLING: Kies een subset van camera's voor deze batch
+            # Dit versnelt de training enorm bij veel camera's
+            cam_idx = torch.randint(0, num_total_cams, (c.cams_per_batch,), device=device)
+            batch_cam_pos = cam_pos[cam_idx]
+            
+            # 3. Pak de bijbehorende targets [Num_Cams_Batch, Num_Gaussians_Batch]
+            # Let op de volgorde van indices in targets: targets[cam_indices][:, gaussian_indices]
+            target_batch = (targets[cam_idx][:, idx] > c.threshold).float()
+            
+            # 4. Forward pass met gesamplede camera's
+            # Zorg dat je SphericalVoronoi model batch_cam_pos accepteert
+            preds = model(idx, batch_cam_pos, g_pos_batch) 
+
+            # 5. Weighting & Loss
             weights = torch.ones_like(target_batch)
             weights[target_batch == 1.0] = 5.0
 
-            preds = model(idx, cam_pos, g_pos_all[idx]) # [Cams, Batch]
-
-            # 2. Bereken de loss met dit gewicht
             loss = torch.nn.functional.binary_cross_entropy(
                 preds.clamp(1e-7, 1-1e-7), 
                 target_batch, 
@@ -109,21 +141,13 @@ def train():
             
             loss.backward()
             optimizer.step()
-            
             epoch_loss += loss.item()
 
-            # --- Uitgebreide Metrics Berekening ---
+            # --- Metrics ---
             with torch.no_grad():
-                # Harde drempel op 0.5 voor classificatie-fouten
                 binary_preds = (preds > 0.5).float()
-                
-                # False Negatives: Target is 1, Pred is 0
-                fn = ((target_batch == 1.0) & (binary_preds == 0.0)).sum().item()
-                # False Positives: Target is 0, Pred is 1
-                fp = ((target_batch == 0.0) & (binary_preds == 1.0)).sum().item()
-                
-                total_fn += fn
-                total_fp += fp
+                total_fn += ((target_batch == 1.0) & (binary_preds == 0.0)).sum().item()
+                total_fp += ((target_batch == 0.0) & (binary_preds == 1.0)).sum().item()
                 total_pixels += target_batch.numel()
 
         # Bereken gemiddelden voor de hele epoch
@@ -183,31 +207,41 @@ def train():
         if epoch % 10 == 0:
             print(f"Epoch {epoch:3d} | Loss: {avg_loss:.5f} | Gaten: {log_dict['metrics/fn_rate_gaten']:.4f}")
 
-    # --- Opslaan ---
-    os.makedirs("./npz_files", exist_ok=True)
+
+    t_folder = f"threshold_{str(c.threshold).replace('.', '_')}"
+    s_folder = f"sites_{c.num_sites}"
     
-    # Optioneel: vervang de punt in de threshold (0.5 -> 0_5) voor bestandsnaam-veiligheid
+    base_dir = model_root / "SV" / t_folder / s_folder
+    base_dir.mkdir(parents=True, exist_ok=True)
+    
     t_str = str(c.threshold).replace('.', '_')
     temp_str = str(c.startTemp).replace('.', '_')
+    filename = f"sv_s{c.num_sites}_t{t_str}_temp{temp_str}.npz"
     
-    filename = f"./npz_files/sv_s{c.num_sites}_t{t_str}_temp{temp_str}.npz"
+    full_path = base_dir / filename
 
-
+    # 3. Opslaan
     values_final = torch.sigmoid(model.values_raw).detach().cpu().numpy()
     sites_final = model.sites_raw.detach().cpu().numpy()
     
     with torch.no_grad():
-        # Sla ook de hyperparameters zelf op in de NPZ, 
-        # zodat je later niet hoeft te raden welke settings bij welke data horen.
-        np.savez(filename, 
+        np.savez(full_path, 
                  sites=sites_final,
                  values=values_final,
                  num_sites=c.num_sites,
                  threshold=c.threshold,
                  startTemp=c.startTemp)
         
-    print(f"Model succesvol opgeslagen: {filename}")
+    print(f"Model succesvol opgeslagen: {full_path}")
     wandb.finish()
+    torch.cuda.empty_cache()
 
 if __name__ == "__main__":
-    train()
+
+    thresholds = [0.01]
+    sites_options = [8, 10,15]
+    for model_root in _iter_model_roots():
+        for t in thresholds:
+            for s in sites_options:
+                print(f"\n--- START TRAINING MODEL: {model_root.name} | THRESHOLD: {t} ---")
+                train(t, s, model_root)

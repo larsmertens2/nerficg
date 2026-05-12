@@ -76,12 +76,30 @@ def _predict_sv_grid(model_data, gaussian_index, omega, res_lat, res_lon, thresh
     return grid_binary, overlay_points, 200, "Voronoi Sites", f"Spherical Voronoi Prediction (Model Value > {threshold_model})"
 
 
+def _load_optional_npz(path):
+    if path is None:
+        return None
+    resolved_path = _resolve_path(path)
+    if not resolved_path.exists():
+        print(f"Waarschuwing: Bestand niet gevonden, overslaan: {resolved_path}")
+        return None
+    try:
+        return np.load(resolved_path, allow_pickle=True)
+    except OSError as exc:
+        print(f"Waarschuwing: Bestand kon niet worden geladen, overslaan: {resolved_path} ({exc})")
+        return None
+
+
+def _npz_has_keys(npz_data, required_keys):
+    return npz_data is not None and all(key in npz_data for key in required_keys)
+
+
 def compare_visibility_binary_grids(
     file_cam,
     file_gauss,
-    file_sg,
-    file_sv,
     gaussian_index,
+    file_sg=None,
+    file_sv=None,
     threshold_cam=0.1,
     threshold_sg=0.5,
     threshold_sv=0.5,
@@ -89,11 +107,12 @@ def compare_visibility_binary_grids(
     try:
         cam_data = np.load(_resolve_path(file_cam), allow_pickle=True)
         gauss_data = np.load(_resolve_path(file_gauss))
-        sg_data = np.load(_resolve_path(file_sg))
-        sv_data = np.load(_resolve_path(file_sv))
     except FileNotFoundError as exc:
         print(f"Fout: Kon een of meer bestanden niet vinden: {exc}")
         return
+
+    sg_data = _load_optional_npz(file_sg)
+    sv_data = _load_optional_npz(file_sv)
 
     target_pos = gauss_data["means"][gaussian_index]
     cam_positions = _load_camera_positions(cam_data)
@@ -112,16 +131,31 @@ def compare_visibility_binary_grids(
     grid_cam_binary = np.nan_to_num(grid_cam_binary, nan=0.0)
 
     omega = _lon_lat_grid(res_lat=res_lat, res_lon=res_lon)
-    sg_binary, sg_overlay, sg_sizes, sg_label, sg_title = _predict_sg_grid(
-        sg_data, gaussian_index, omega, res_lat, res_lon, threshold_sg
-    )
-    sv_binary, sv_overlay, sv_sizes, sv_label, sv_title = _predict_sv_grid(
-        sv_data, gaussian_index, omega, res_lat, res_lon, threshold_sv
-    )
+    model_panels = []
+    if _npz_has_keys(sg_data, ("axis", "sharpness", "amplitude")):
+        model_panels.append(
+            _predict_sg_grid(sg_data, gaussian_index, omega, res_lat, res_lon, threshold_sg)
+        )
+    elif sg_data is not None:
+        print("Waarschuwing: SG-bestand mist axis/sharpness/amplitude; SG-paneel wordt overgeslagen.")
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(16, 20), sharex=True, sharey=True)
+    if _npz_has_keys(sv_data, ("sites", "values")):
+        model_panels.append(
+            _predict_sv_grid(sv_data, gaussian_index, omega, res_lat, res_lon, threshold_sv)
+        )
+    elif sv_data is not None:
+        print("Waarschuwing: SV-bestand mist sites/values; SV-paneel wordt overgeslagen.")
+
+    if not model_panels:
+        print("Fout: SG- en SV-bestanden ontbreken allebei; er is niets om te visualiseren.")
+        return
+
+    fig, axes = plt.subplots(1 + len(model_panels), 1, figsize=(16, 7 * (1 + len(model_panels))), sharex=True, sharey=True)
+    if not isinstance(axes, np.ndarray):
+        axes = np.array([axes])
     red_green_map = ListedColormap(["#e74c3c", "#2ecc71"])
 
+    ax1 = axes[0]
     ax1.imshow(
         grid_cam_binary.T,
         extent=[-180, 180, -90, 90],
@@ -135,33 +169,21 @@ def compare_visibility_binary_grids(
         fontsize=14,
     )
 
-    ax2.imshow(
-        sg_binary,
-        extent=[-180, 180, -90, 90],
-        origin="lower",
-        cmap=red_green_map,
-        aspect="auto",
-        interpolation="none",
-    )
-    sg_x, sg_y = sg_overlay
-    ax2.scatter(sg_x, sg_y, c="white", edgecolors="black", s=sg_sizes, marker="*", label=sg_label)
-    ax2.set_title(sg_title + "\n(Hard Boundaries)", fontsize=14)
-    ax2.legend()
+    for ax, (grid_binary, overlay, sizes, label, title) in zip(axes[1:], model_panels):
+        ax.imshow(
+            grid_binary,
+            extent=[-180, 180, -90, 90],
+            origin="lower",
+            cmap=red_green_map,
+            aspect="auto",
+            interpolation="none",
+        )
+        x_vals, y_vals = overlay
+        ax.scatter(x_vals, y_vals, c="white", edgecolors="black", s=sizes, marker="*", label=label)
+        ax.set_title(title + "\n(Hard Boundaries)", fontsize=14)
+        ax.legend()
 
-    ax3.imshow(
-        sv_binary,
-        extent=[-180, 180, -90, 90],
-        origin="lower",
-        cmap=red_green_map,
-        aspect="auto",
-        interpolation="none",
-    )
-    sv_x, sv_y = sv_overlay
-    ax3.scatter(sv_x, sv_y, c="white", edgecolors="black", s=sv_sizes, marker="*", label=sv_label)
-    ax3.set_title(sv_title + "\n(Hard Boundaries)", fontsize=14)
-    ax3.legend()
-
-    for ax in [ax1, ax2, ax3]:
+    for ax in axes:
         ax.set_xlim(-180, 180)
         ax.set_ylim(-90, 90)
         ax.set_ylabel("Latitude (Degrees)", fontsize=12)
@@ -171,7 +193,7 @@ def compare_visibility_binary_grids(
         ax.set_xticks(np.arange(-180, 181, 45))
         ax.set_yticks(np.arange(-90, 91, 30))
 
-    ax3.set_xlabel("Longitude (Degrees)", fontsize=12)
+    axes[-1].set_xlabel("Longitude (Degrees)", fontsize=12)
     plt.tight_layout()
     plt.show()
 
@@ -179,10 +201,10 @@ def compare_visibility_binary_grids(
 compare_visibility_binary_grids(
     file_cam=BASE_DIR / "npz_files/camera_data.npz",
     file_gauss=BASE_DIR / "npz_files/gaussians_atlas.npz",
-    file_sg=BASE_DIR / "npz_files/SG_0_1.npz",
-    file_sv=BASE_DIR / "npz_files/sv_s8_t0_1_temp5.npz",
-    gaussian_index=100,
-    threshold_cam=0.1,
+    file_sg=BASE_DIR / "npz_files/SV/threshold_0_1/sites_10/sv_s10_t0_1_temp10.npz",
+    file_sv=BASE_DIR / "npz_files/SV/threshold_0_01/sites_10/sv_s10_t0_01_temp10.npz",
+    gaussian_index=160,
+    threshold_cam=0.01,
     threshold_sg=0.5,
     threshold_sv=0.5,
 )

@@ -5,6 +5,7 @@
 from argparse import ArgumentParser
 from pathlib import Path
 from time import perf_counter
+import shutil
 
 import torch
 
@@ -18,9 +19,25 @@ with utils.DiscoverSourcePath():
 
 
 def main(*, base_dir: Path, checkpoint_name: str, subsets: list[str] | None, calculate_metrics: bool,
-         closest_train: bool, visualize_errors: bool, benchmark: bool) -> None:
+         closest_train: bool, visualize_errors: bool, benchmark: bool,
+         sg_threshold: float | None, sv_threshold: float | None,
+         use_sg: bool, use_sv: bool, no_culling: bool,
+         output_dir: Path | None, flat_output: bool) -> None:
     # setup framework
     Framework.setup(config_path=str(base_dir / 'training_config.yaml'), require_custom_config=True)
+    if sg_threshold is not None:
+        Framework.config.RENDERER.SG_THRESHOLD = sg_threshold
+    if sv_threshold is not None:
+        Framework.config.RENDERER.SV_THRESHOLD = sv_threshold
+    if no_culling:
+        Framework.config.RENDERER.USE_SG = False
+        Framework.config.RENDERER.USE_SV = False
+    elif use_sg:
+        Framework.config.RENDERER.USE_SG = True
+        Framework.config.RENDERER.USE_SV = False
+    elif use_sv:
+        Framework.config.RENDERER.USE_SV = True
+        Framework.config.RENDERER.USE_SG = False
     # load dataset, model, and renderer
     dataset = DI.get_dataset(
         dataset_type=Framework.config.GLOBAL.DATASET_TYPE,
@@ -34,8 +51,18 @@ def main(*, base_dir: Path, checkpoint_name: str, subsets: list[str] | None, cal
         method=Framework.config.GLOBAL.METHOD_TYPE,
         model=model
     )
+    if sg_threshold is not None:
+        renderer.SG_THRESHOLD = sg_threshold
+    if sv_threshold is not None:
+        renderer.SV_THRESHOLD = sv_threshold
+    if no_culling:
+        renderer.USE_SG = False
+        renderer.USE_SV = False
+        model.gaussians.num_lobes = torch.zeros(1, device=model.gaussians.means.device)
+        model.gaussians.num_sites = torch.zeros(1, device=model.gaussians.means.device)
     # render subsets
     if subsets:
+        render_root = output_dir or (base_dir / 'inference')
         if 'all' in subsets:
             subsets = dataset.subsets + CameraTrajectory.list_options()
         subsets = list(set(subsets))
@@ -49,7 +76,7 @@ def main(*, base_dir: Path, checkpoint_name: str, subsets: list[str] | None, cal
                 trajectory.add_to_dataset(dataset, reference_set='train')
             dataset.set_mode(subset)
             renderer.render_subset(
-                output_directory=base_dir / 'inference',
+                output_directory=render_root,
                 dataset=dataset,
                 calculate_metrics=calculate_metrics,
                 visualize_errors=visualize_errors,
@@ -58,6 +85,14 @@ def main(*, base_dir: Path, checkpoint_name: str, subsets: list[str] | None, cal
                 save_gt=False,
                 closest_train=closest_train,
             )
+            if flat_output:
+                subset_output_root = render_root / f'{dataset.mode}_{model.num_iterations_trained}'
+                rgb_output_root = subset_output_root / 'rgb'
+                if rgb_output_root.exists():
+                    render_root.mkdir(parents=True, exist_ok=True)
+                    for image_path in sorted(rgb_output_root.glob(f'*.png')):
+                        shutil.move(str(image_path), str(render_root / image_path.name))
+                    shutil.rmtree(subset_output_root, ignore_errors=True)
     # performance benchmark
     if benchmark:
         NUM_ITERATIONS = 100  # number of times the test set is rendered to calculate the online FPS
@@ -133,6 +168,37 @@ if __name__ == '__main__':
         metavar='checkpoint_name', required=False,
         help='The name of the checkpoint file to use for inference.'
     )
+    parser.add_argument(
+        '--sg-threshold', action='store', dest='sg_threshold', default=None,
+        metavar='float', required=False, type=float,
+        help='Override SG threshold used by the renderer.'
+    )
+    parser.add_argument(
+        '--sv-threshold', action='store', dest='sv_threshold', default=None,
+        metavar='float', required=False, type=float,
+        help='Override SV threshold used by the renderer.'
+    )
+    parser.add_argument(
+        '--use-sg', action='store_true', dest='use_sg',
+        help='Force the renderer to use SG mode.'
+    )
+    parser.add_argument(
+        '--use-sv', action='store_true', dest='use_sv',
+        help='Force the renderer to use SV mode.'
+    )
+    parser.add_argument(
+        '--no-culling', action='store_true', dest='no_culling',
+        help='Force the renderer to use no SG/SV culling.'
+    )
+    parser.add_argument(
+        '--output-dir', action='store', dest='output_dir', default=None,
+        metavar='path/to/output/directory', required=False,
+        help='Optional output directory for rendered subsets.'
+    )
+    parser.add_argument(
+        '--flat-output', action='store_true', dest='flat_output',
+        help='Move rendered subset images out of the rgb folder into the output directory.'
+    )
     args, _ = parser.parse_known_args()
     Logger.set_mode(Logger.MODE_VERBOSE)
     main(
@@ -143,4 +209,11 @@ if __name__ == '__main__':
         closest_train=args.closest_train,
         visualize_errors=args.visualize_errors,
         benchmark=args.benchmark,
+        sg_threshold=args.sg_threshold,
+        sv_threshold=args.sv_threshold,
+        use_sg=args.use_sg,
+        use_sv=args.use_sv,
+        no_culling=args.no_culling,
+        output_dir=Path(args.output_dir) if args.output_dir else None,
+        flat_output=args.flat_output,
     )

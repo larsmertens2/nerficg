@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import gc
 
-def inspect_contributions(file_path="npz_files/camera_data.npz"):
+def inspect_contributions(file_path="npz_files/mic/camera_data.npz"):
     print("--- Memory-Efficient Contribution Deep Dive ---")
     
     # Gebruik mmap_mode om het bestand niet direct volledig in RAM te laden

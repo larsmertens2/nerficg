@@ -103,7 +103,7 @@ def compute_metrics(
     image_filenames = [name for name in list_sorted_files(results_path) if name.endswith('.png') or name.endswith('.jpg') or name.endswith('.jpeg')]
     results = load_images([
         str(results_path / name) for name in image_filenames
-    ], scale_factor=None, num_threads=4, desc=f'loading {method_name} images')[0]
+    ], scale_factor=None, num_threads=1, desc=f'loading {method_name} images')[0]
     metric_values = [[] for _ in metrics]
     for result, target, mask in Logger.log_progress(zip(results, targets, mask_images), total=len(results), desc=f'calculate {method_name} metrics', leave=False):
         for metric, values, with_mask in zip(metrics, metric_values, metric_requires_mask):
@@ -161,12 +161,12 @@ def main(root_dir: Path, config_only: bool):
             return
         gt_images = load_images([
             str(gt_path / name) for name in list_sorted_files(gt_path) if name.endswith('.png') or name.endswith('.jpg') or name.endswith('.jpeg')
-        ], scale_factor=None, num_threads=4, desc='loading reference images')[0]
+        ], scale_factor=None, num_threads=1, desc='loading reference images')[0]
         mask_path = scene_path / '_mask'
         if mask_path.exists():
             mask_images = load_images([
                 str(mask_path / name) for name in list_sorted_files(mask_path) if name.endswith('.png') or name.endswith('.jpg') or name.endswith('.jpeg')
-            ], scale_factor=None, num_threads=4, desc='loading masks')[0]
+            ], scale_factor=None, num_threads=1, desc='loading masks')[0]
             mask_images = [mask_image[:, :1] for mask_image in mask_images]
         else:
             if max(metric_requires_mask):

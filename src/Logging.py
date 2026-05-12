@@ -32,8 +32,8 @@ class Logger:
         m_data = zip(
             [f'\033[{n}m\033[1m{bytearray.fromhex(m).decode()}\033[0m\033[0m{o}: ' for n, m, o in zip(
                 (91, 92, 93, 94),
-                ('4552524f52', '494e464f', '5741524e494e47', '4445425547') if not _ else ('4352494e4745', '425457', '535553', '43524f574544'),
-                [''] * 4 if not _ else (' \U0001F346\U0001F90F', ' \U0001F485', ' \U0001F928', ' \U0001F351')
+                ('4552524f52', '494e464f', '5741524e494e47', '4445425547'), # Altijd ERROR, INFO, etc.
+                [''] * 4 # Nooit emoji's
             )],
             [MODE_VERBOSE, MODE_VERBOSE, MODE_VERBOSE, MODE_DEBUG]
         )

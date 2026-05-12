@@ -3,13 +3,17 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import wandb
-import os
+from pathlib import Path
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+NPZ_ROOT = SCRIPT_DIR / "npz_files"
 
 class MultiSGVisibility(nn.Module):
     def __init__(self, num_gaussians, num_lobes, device, bias):
         super().__init__()
         self.num_lobes = num_lobes
-        self.bias = bias # Sla de bias op
+        self.bias = bias 
         self.axis_raw = nn.Parameter(torch.randn(num_gaussians, num_lobes, 3, device=device))
         self.sharpness_raw = nn.Parameter(torch.full((num_gaussians, num_lobes), 5.0, device=device))
         self.amplitude_raw = nn.Parameter(torch.full((num_gaussians, num_lobes), 4.0, device=device))
@@ -27,72 +31,84 @@ class MultiSGVisibility(nn.Module):
         exponent = sharpness * (dot - 1.0)
         logits = torch.sum(amplitude * torch.exp(exponent), dim=-1)
 
-        # Gebruik de opgeslagen bias
         preds = torch.sigmoid(logits - self.bias)
-
         return preds, sharpness, amplitude
 
-def train():
+
+def _iter_model_roots():
+    model_roots = [
+        path for path in sorted(NPZ_ROOT.iterdir())
+        if path.is_dir() and (path / "camera_data.npz").exists() and (path / "gaussians_atlas.npz").exists()
+    ]
+    if not model_roots:
+        raise FileNotFoundError(f"Geen geldige modelmappen gevonden in {NPZ_ROOT}")
+    return model_roots
+
+
+def train(threshold, num_lobes, model_root: Path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # --- 1. Data Laden ---
-    cam_data = np.load("npz_files/camera_data.npz")
-    g_data = np.load("npz_files/gaussians_atlas.npz")
+    cam_data = np.load(model_root / "camera_data.npz")
+    g_data = np.load(model_root / "gaussians_atlas.npz")
     
     cam_pos = torch.tensor(cam_data["camera_c2w"][:, :3, 3], dtype=torch.float32).to(device)
-    targets = torch.tensor(cam_data["contributions"], dtype=torch.float32).to(device)
+    targets = torch.tensor(cam_data["contributions"], dtype=torch.float16).to(device)
     g_pos_all = torch.tensor(g_data["means"], dtype=torch.float32).to(device)
 
     num_gaussians = g_pos_all.shape[0]
+    num_total_cams = cam_pos.shape[0]
     
     # --- 2. Config & WandB ---
     config = {
         "num_gaussians": num_gaussians,
-        "num_lobes": 6,
-        "learning_rate": 0.001,
-        "batch_size": 2500,
-        "threshold": 0.01,
-        "epochs": 1000,
-        "fn_weight": 5.0, # Penalty voor het missen van zichtbare Gaussiansµ
+        "num_lobes": num_lobes,
+        "learning_rate": 0.01,
+        "batch_size": 15000,      
+        "cams_per_batch": 100,     
+        "threshold": threshold,
+        "epochs": 1000,         
+        "fn_weight": 3.0, 
         "bias": 4.6
     }
     
-    run = wandb.init(project="sg_visibility_v3", config=config)
+    t_str = str(threshold).replace('.', '_')
+    run_name = f"SG_{model_root.name}_l{num_lobes}_t{t_str}_optimized"
+    
+    run = wandb.init(project="sg_visibility_ship", config=config, name=run_name, reinit=True)
     c = wandb.config
 
     model = MultiSGVisibility(c.num_gaussians, c.num_lobes, device, c.bias)
-    
-    # Optimizer met verschillende LR groepen (net als in de Voronoi versie)
-    optimizer = optim.Adam([
-        {'params': model.axis_raw,      'lr': c.learning_rate},
-        {'params': model.sharpness_raw,  'lr': c.learning_rate * 0.5},
-        {'params': model.amplitude_raw,  'lr': c.learning_rate * 0.5}
-    ])
-
+    optimizer = optim.Adam(model.parameters(), lr=c.learning_rate)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=15)
 
     # --- 3. Training Loop ---
     for epoch in range(c.epochs):
         indices = torch.randperm(num_gaussians, device=device)
         epoch_loss = 0
-        total_fn, total_fp, total_elements = 0, 0, 0
-        total_tp = 0
+        total_fn, total_fp, total_tp, total_elements = 0, 0, 0, 0
 
+        model.train()
         for i in range(0, num_gaussians, c.batch_size):
             optimizer.zero_grad()
             
             idx = indices[i : i + c.batch_size]
             g_pos_batch = g_pos_all[idx]
-            # Ground truth binair maken
-            target_batch = (targets[:, idx] > c.threshold).float()
             
-            preds, sharpness, amplitude = model(idx, cam_pos, g_pos_batch)
+            # --- CAMERA SAMPLING ---
+            # Kies 32 willekeurige camera-indices voor deze batch
+            cam_idx = torch.randint(0, num_total_cams, (c.cams_per_batch,), device=device)
+            batch_cam_pos = cam_pos[cam_idx]
             
-            # Gewichten toepassen: Recall is belangrijker (False Negatives zijn duur)
+            # Pak alleen de relevante targets [32, batch_size]
+            target_batch = (targets[cam_idx][:, idx] > c.threshold).float()
+            
+            # Forward pass met gesamplede camera's
+            preds, sharpness, amplitude = model(idx, batch_cam_pos, g_pos_batch)
+            
             weights = torch.ones_like(target_batch)
             weights[target_batch == 1.0] = c.fn_weight
 
-            # BCE Loss met clamping voor stabiliteit
             loss = torch.nn.functional.binary_cross_entropy(
                 preds.clamp(1e-7, 1.0 - 1e-7), 
                 target_batch, 
@@ -100,51 +116,42 @@ def train():
             )
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
-            
             epoch_loss += loss.item()
 
-            # --- Metrics ---
-            with torch.no_grad():
-                binary_preds = (preds > 0.5).float()
-                fn = ((target_batch == 1.0) & (binary_preds == 0.0)).sum().item()
-                fp = ((target_batch == 0.0) & (binary_preds == 1.0)).sum().item()
-                tp = ((target_batch == 1.0) & (binary_preds == 1.0)).sum().item()
-                
-                total_fn += fn
-                total_fp += fp
-                total_tp += tp
-                total_elements += target_batch.numel()
+            # Metrics (alleen voor de laatste batch van de epoch om tijd te sparen)
+            if i + c.batch_size >= num_gaussians:
+                with torch.no_grad():
+                    binary_preds = (preds > 0.5).float()
+                    total_fn += ((target_batch == 1.0) & (binary_preds == 0.0)).sum().item()
+                    total_fp += ((target_batch == 0.0) & (binary_preds == 1.0)).sum().item()
+                    total_tp += ((target_batch == 1.0) & (binary_preds == 1.0)).sum().item()
+                    total_elements += target_batch.numel()
 
-        # Epoch stats
         avg_loss = epoch_loss / (num_gaussians / c.batch_size)
         scheduler.step(avg_loss)
         
-        recall = total_tp / (total_tp + total_fn + 1e-7)
-        precision = total_tp / (total_tp + total_fp + 1e-7)
-
-        # Logging naar WandB
-        wandb.log({
-            "epoch": epoch,
-            "train/loss": avg_loss,
-            "metrics/recall": recall,
-            "metrics/precision": precision,
-            "metrics/fn_rate": total_fn / total_elements,
-            "metrics/fp_rate": total_fp / total_elements,
-            "stats/avg_sharpness": sharpness.mean().item(),
-            "stats/avg_amplitude": amplitude.mean().item(),
-            "stats/lr": optimizer.param_groups[0]['lr'],
-            "histograms/amplitude": wandb.Histogram(amplitude.detach().cpu().numpy()),
-            "histograms/sharpness": wandb.Histogram(sharpness.detach().cpu().numpy())
-        })
-
         if epoch % 10 == 0:
-            print(f"E {epoch:3} | Loss: {avg_loss:.5f} | Recall: {recall:.2f} | Precision: {precision:.2f} | FN: {total_fn}")
+            recall = total_tp / (total_tp + total_fn + 1e-7)
+            precision = total_tp / (total_tp + total_fp + 1e-7)
+            
+            wandb.log({
+                "epoch": epoch,
+                "train/loss": avg_loss,
+                "metrics/recall": recall,
+                "metrics/precision": precision,
+                "stats/lr": optimizer.param_groups[0]['lr']
+            })
+            print(f"E {epoch:3} | Loss: {avg_loss:.5f} | Recall: {recall:.2f} | FPS op GPU verbeterd!")
 
-    # --- 4. Opslaan ---
-    save_path = "./npz_files/trained_sg_visibility.npz"
-    os.makedirs("./npz_files", exist_ok=True)
+    # --- 4. Opslaan in mappenstructuur ---
+    t_folder = f"threshold_{t_str}"
+    l_folder = f"lobes_{c.num_lobes}"
+    base_dir = model_root / "SG" / t_folder / l_folder
+    base_dir.mkdir(parents=True, exist_ok=True)
+    
+    filename = f"sg_l{c.num_lobes}_t{t_str}.npz"
+    full_path = base_dir / filename
     
     with torch.no_grad():
         results = {
@@ -155,10 +162,26 @@ def train():
             "threshold": c.threshold,
             "bias": c.bias
         }
+        np.savez(full_path, **results)
     
-    np.savez(save_path, **results)
-    print(f"Opslaan voltooid: {save_path}")
+    print(f"Opslaan voltooid: {full_path}")
     wandb.finish()
+    torch.cuda.empty_cache()
 
 if __name__ == "__main__":
-    train()
+
+    if torch.cuda.is_available():
+        print(f"Running on: {torch.cuda.get_device_name(0)}")
+        device = torch.device("cuda:0") 
+    else:
+        print("CUDA niet gevonden, switched naar CPU (pas op: traag!)")
+        device = torch.device("cpu")
+
+    thresholds = [0.01]
+    lobes_options = [4, 6, 10]
+
+    for model_root in _iter_model_roots():
+        for t in thresholds:
+            for l in lobes_options:
+                print(f"\n--- START SG TRAINING | Model: {model_root.name} | Threshold: {t} | Lobes: {l} ---")
+                train(threshold=t, num_lobes=l, model_root=model_root)
