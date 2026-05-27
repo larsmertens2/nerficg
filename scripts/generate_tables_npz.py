@@ -28,6 +28,16 @@ def threshold_csv_value(name: str) -> str:
     return f"{float(threshold_label(name).replace('_', '.')):g}"
 
 
+def clean_numeric_string(val: str) -> str:
+    """Zet waarden zoals '2.0' of '2' om naar een universeel compact formaat '2'."""
+    if not val or str(val).strip() == "" or str(val).upper() == "N/A":
+        return "N/A"
+    try:
+        return f"{float(val):g}"
+    except ValueError:
+        return str(val).strip()
+
+
 def method_name_from_inference_dir(scene_dir: Path, inference_dir: Path) -> str | None:
     parts = inference_dir.relative_to(scene_dir).parts
     if len(parts) < 5 or parts[-2] != "inference":
@@ -54,13 +64,14 @@ def csv_key_from_inference_dir(scene_dir: Path, inference_dir: Path) -> tuple[st
     variant = parts[2]
     lobes = variant.removeprefix("lobes_") if variant.lower().startswith("lobes_") else "N/A"
     sites = variant.removeprefix("sites_") if variant.lower().startswith("sites_") else "N/A"
+    
     return (
         scene_dir.name,
         test_type,
         npz_files[0].name,
-        threshold_csv_value(parts[-1]),
-        lobes,
-        sites,
+        clean_numeric_string(threshold_csv_value(parts[-1])),
+        clean_numeric_string(lobes),
+        clean_numeric_string(sites),
     )
 
 
@@ -150,7 +161,8 @@ def load_csv_rows(csv_path: Path):
 
     with open(csv_path, "r", newline="") as f:
         reader = csv.DictReader(f)
-        return list(reader), list(reader.fieldnames or [])
+        fieldnames = list(reader.fieldnames or [])
+        return list(reader), fieldnames
 
 
 def ensure_columns(fieldnames: list[str], required_columns: list[str]) -> list[str]:
@@ -172,17 +184,29 @@ def write_csv_rows(csv_path: Path, fieldnames: list[str], rows: list[dict]):
 
 def load_performance_csv(csv_path: Path, metric_names: list[str]):
     rows, fieldnames = load_csv_rows(csv_path)
-    fieldnames = ensure_columns(fieldnames, CSV_KEY_FIELDS + metric_names)
-    rows_by_key = {
-        tuple(row.get(field, "") for field in CSV_KEY_FIELDS): row
-        for row in rows
-    }
-    write_csv_rows(csv_path, fieldnames, rows)
+    
+    fieldnames = ensure_columns(fieldnames, CSV_KEY_FIELDS)
+    fieldnames = ensure_columns(fieldnames, metric_names)
+    
+    rows_by_key = {}
+    for row in rows:
+        key = (
+            row.get("dataset", ""),
+            row.get("type", ""),
+            row.get("model_file", ""),
+            clean_numeric_string(row.get("threshold", "")),
+            clean_numeric_string(row.get("lobes", "")),
+            clean_numeric_string(row.get("sites", "")),
+        )
+        rows_by_key[key] = row
+        
     return rows, fieldnames, rows_by_key
 
 
 def metric_values_exist(row: dict | None, metric_names: list[str]) -> bool:
-    return row is not None and all(str(row.get(metric_name, "")).strip() for metric_name in metric_names)
+    if row is None:
+        return False
+    return all(str(row.get(metric_name, "")).strip() for metric_name in metric_names)
 
 
 def update_performance_csv(csv_path: Path, fieldnames: list[str], rows: list[dict], rows_by_key: dict, row_key: tuple, values: dict):
@@ -192,7 +216,11 @@ def update_performance_csv(csv_path: Path, fieldnames: list[str], rows: list[dic
         rows.append(row)
         rows_by_key[row_key] = row
 
-    row.update(values)
+    for key, val in values.items():
+        if key in fieldnames:
+            if key not in row or not str(row[key]).strip() or key in ["SSIM", "FLIP"]:
+                row[key] = val
+
     write_csv_rows(csv_path, fieldnames, rows)
 
 
@@ -237,6 +265,7 @@ def compute_tables(output_dir: Path, metric_names: list[str], scenes: dict, meth
         metric_name: [[] for _ in method_names]
         for metric_name in metric_names
     }
+    
     csv_rows, csv_fieldnames, csv_rows_by_key = load_performance_csv(csv_path, metric_names)
 
     for scene_name, scene in scenes.items():
@@ -261,6 +290,7 @@ def compute_tables(output_dir: Path, metric_names: list[str], scenes: dict, meth
 
             csv_key = csv_key_from_inference_dir(scene["source_root"], method_path)
             existing_csv_row = csv_rows_by_key.get(csv_key) if csv_key else None
+            
             if metric_values_exist(existing_csv_row, metric_names):
                 print(f"  Skipping {method_name} for {scene_name}; metrics already in {csv_path}")
                 for metric_name in metric_names:

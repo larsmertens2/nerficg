@@ -8,551 +8,269 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
-QUALITY_SSIM_MIN = 0.99
-QUALITY_FLIP_MAX = 0.005
-
-
-METHOD_COLORS = {
-    "SG": "#2563eb",
-    "SV": "#dc2626",
-    "BASELINE": "#111827",
-}
+# Minimal, focused analysis: produce clean FLIP vs Speedup lines (one line per threshold)
+# and grouped bar charts (Speedup / FLIP / Culling) per method (SG, SV).
 
 
-def parse_args():
-    parser = ArgumentParser(
-        description="Create CSV summaries and graphs comparing SG and SV culling results."
-    )
-    parser.add_argument(
-        "--csv",
-        type=Path,
-        default=Path("model_performance_summary.csv"),
-        help="Input CSV with benchmark results.",
-    )
-    parser.add_argument(
-        "--out",
-        type=Path,
-        default=Path("csv_results"),
-        help="Output directory for graphs and summary CSV files.",
-    )
-    parser.add_argument(
-        "--ssim-min",
-        type=float,
-        default=QUALITY_SSIM_MIN,
-        help="Minimum SSIM for the quality-preserving summary.",
-    )
-    parser.add_argument(
-        "--flip-max",
-        type=float,
-        default=QUALITY_FLIP_MAX,
-        help="Maximum FLIP for the quality-preserving summary.",
-    )
-    return parser.parse_args()
+def parse_args() -> ArgumentParser:
+    p = ArgumentParser(description="Clean culling analysis: focused plots per method.")
+    p.add_argument("--csv", type=Path, required=True, help="Input CSV with results")
+    p.add_argument("--out", type=Path, default=Path("output/culling_plots"), help="Output directory for plots")
+    # Veranderd naar --linear-flip omdat logaritmisch nu de betere standaardkeuze is
+    p.add_argument("--linear-flip", action="store_true", help="Plot FLIP axis on a linear scale instead of log scale")
+    return p.parse_args()
 
 
-def load_results(csv_path: Path) -> pd.DataFrame:
+def load_data(csv_path: Path) -> pd.DataFrame:
     if not csv_path.exists():
-        raise FileNotFoundError(f"Input CSV not found: {csv_path}")
+        raise FileNotFoundError(csv_path)
+    df = pd.read_csv(csv_path)
+    # normalize expected column names
+    df = df.rename(columns={c: c.strip() for c in df.columns})
+    return df
 
-    data = pd.read_csv(csv_path)
-    required_columns = {
-        "dataset",
-        "type",
-        "threshold",
-        "lobes",
-        "sites",
-        "avg_fps",
-        "mean_culled_gaussians",
-        "culled_gaussians_percent",
-        "SSIM",
-        "FLIP",
-    }
-    missing_columns = required_columns.difference(data.columns)
-    if missing_columns:
-        missing = ", ".join(sorted(missing_columns))
-        raise ValueError(f"Missing required columns in {csv_path}: {missing}")
 
-    data = data.copy()
-    numeric_columns = [
-        "threshold",
-        "lobes",
-        "sites",
-        "avg_fps",
-        "mean_culled_gaussians",
-        "culled_gaussians_percent",
-        "SSIM",
-        "FLIP",
-    ]
-    optional_numeric_columns = [
-        "baseline_avg_fps",
-        "baseline_fps_std",
-        "fps_delta_vs_baseline",
-        "fps_speedup_vs_baseline",
-        "fps_percent_change_vs_baseline",
-    ]
-    numeric_columns.extend(
-        column for column in optional_numeric_columns if column in data.columns
+def compute_speedup_series(df: pd.DataFrame) -> pd.Series:
+    if "fps_speedup_vs_baseline" in df.columns:
+        return df["fps_speedup_vs_baseline"].astype(float)
+    if "baseline_avg_fps" in df.columns and "avg_fps" in df.columns:
+        return (df["avg_fps"].astype(float) / df["baseline_avg_fps"].astype(float)).replace([np.inf, -np.inf], np.nan)
+    # fallback: normalize by dataset mean to get a relative speed measure
+    if "avg_fps" in df.columns and "dataset" in df.columns:
+        return df.groupby("dataset")["avg_fps"].transform(lambda x: x.astype(float) / x.astype(float).mean())
+    # last fallback: use avg_fps raw if present
+    if "avg_fps" in df.columns:
+        return df["avg_fps"].astype(float)
+    # otherwise return NaNs
+    return pd.Series(np.nan, index=df.index)
+
+
+def aggregate_for_plotting(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["speedup_plot"] = compute_speedup_series(df)
+    # ensure common columns exist
+    for col in ["type", "threshold", "config_label", "config_value", "FLIP", "culled_gaussians_percent"]:
+        if col not in df.columns:
+            df[col] = np.nan
+    # derive config_value from lobes/sites when missing
+    if df["config_value"].isna().all():
+        # SG uses 'lobes', SV uses 'sites'
+        if "type" in df.columns and df["type"].dropna().size > 0:
+            if "lobes" in df.columns:
+                df.loc[df["type"].str.upper() == "SG", "config_value"] = pd.to_numeric(df.loc[df["type"].str.upper() == "SG", "lobes"], errors="coerce")
+            if "sites" in df.columns:
+                df.loc[df["type"].str.upper() == "SV", "config_value"] = pd.to_numeric(df.loc[df["type"].str.upper() == "SV", "sites"], errors="coerce")
+
+    df["config_value"] = pd.to_numeric(df["config_value"], errors="coerce")
+    # aggregate mean per method/amount/threshold
+    agg = (
+        df.groupby(["type", "config_value", "threshold"], as_index=False)
+        .agg(speedup=("speedup_plot", "mean"), FLIP=("FLIP", "mean"), culling=("culled_gaussians_percent", "mean"))
     )
-    for column in numeric_columns:
-        data[column] = pd.to_numeric(data[column], errors="coerce")
-
-    if "baseline_avg_fps" in data.columns:
-        if "fps_delta_vs_baseline" not in data.columns:
-            data["fps_delta_vs_baseline"] = data["avg_fps"] - data["baseline_avg_fps"]
-        if "fps_speedup_vs_baseline" not in data.columns:
-            data["fps_speedup_vs_baseline"] = data["avg_fps"] / data["baseline_avg_fps"]
-        if "fps_percent_change_vs_baseline" not in data.columns:
-            data["fps_percent_change_vs_baseline"] = (
-                data["fps_speedup_vs_baseline"] - 1
-            ) * 100
-
-    data["type"] = data["type"].astype(str).str.upper()
-    data["config_value"] = np.select(
-        [data["type"].eq("SG"), data["type"].eq("SV")],
-        [data["lobes"], data["sites"]],
-        default=0,
-    )
-    data["config_label"] = np.select(
-        [data["type"].eq("SG"), data["type"].eq("SV")],
-        [
-            "lobes=" + data["lobes"].fillna(-1).astype(int).astype(str),
-            "sites=" + data["sites"].fillna(-1).astype(int).astype(str),
-        ],
-        default="no culling",
-    )
-    data["quality_preserving"] = (
-        data["SSIM"].ge(QUALITY_SSIM_MIN) & data["FLIP"].le(QUALITY_FLIP_MAX)
-    )
-    data["utility_score"] = (
-        data["avg_fps"].rank(pct=True)
-        + data["culled_gaussians_percent"].rank(pct=True)
-        + data["SSIM"].rank(pct=True)
-        + (1 - data["FLIP"].rank(pct=True))
-    )
-    return data.sort_values(["dataset", "type", "config_value", "threshold"])
+    return agg
 
 
-def ensure_output_dir(output_dir: Path) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
+def plot_flip_vs_speedup(agg: pd.DataFrame, out_dir: Path, log_flip: bool = True) -> None:
+    methods = [m for m in sorted(agg["type"].dropna().unique()) if str(m).upper() in {"SG", "SV"}]
+    for method in methods:
+        mdf = agg[agg["type"].eq(method)].copy()
+        if mdf.empty:
+            continue
+        thresholds = sorted(mdf["threshold"].dropna().unique())
+        amounts = sorted(mdf["config_value"].dropna().unique())
+        if len(thresholds) == 0 or len(amounts) == 0:
+            continue
+
+        fig, ax = plt.subplots(figsize=(9, 6))
+        cmap = plt.get_cmap("plasma")
+        colors = cmap(np.linspace(0, 1, len(thresholds)))
+
+        # vertical offset scale to separate overlapping lines slightly
+        y_min = mdf["speedup"].min()
+        y_max = mdf["speedup"].max()
+        y_span = max(y_max - y_min, 1e-9)
+        offset_step = 0.02 * y_span
+
+        # prepare FLIP offset if log scale requested: avoid zeros by adding small eps
+        if log_flip:
+            nonzero_min = mdf["FLIP"][mdf["FLIP"] > 0].min()
+            if np.isnan(nonzero_min) or nonzero_min <= 0:
+                eps = 1e-6
+            else:
+                eps = float(nonzero_min) / 10.0
+            # set log scale on x axis
+            ax.set_xscale("log")
+
+        for i, thr in enumerate(thresholds):
+            row = mdf[mdf["threshold"].eq(thr)].set_index("config_value").reindex(amounts)
+            x = row["FLIP"].values.astype(float)
+            if log_flip:
+                x = x + eps
+            y = row["speedup"].values.astype(float)
+            # small offset
+            y = y + (i - (len(thresholds) - 1) / 2) * offset_step
+            valid = ~np.isnan(x) & ~np.isnan(y)
+            if not np.any(valid):
+                continue
+            xi = x[valid]; yi = y[valid]
+            order = np.argsort(xi)
+            xi = xi[order]; yi = yi[order]
+            ax.plot(xi, yi, marker="o", color=colors[i], linewidth=2, label=f"t={thr:g}")
+            # annotate amounts (verkleind van 7 naar 6 voor minder overlap)
+            amt_list = np.array(amounts)[valid][order]
+            for xv, yv, amt in zip(xi, yi, amt_list):
+                ax.annotate(str(int(amt)), (xv, yv), xytext=(4, 4), textcoords="offset points", fontsize=8)
+
+        ax.set_xlabel("FLIP")
+        ax.set_ylabel("Speedup (scene-independent)")
+        # adding which="both" zorgt voor een overzichtelijk grid bij log-schaal
+        ax.grid(True, alpha=0.25, which="both")
+        ax.legend(title="threshold", frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
+        fig.suptitle("")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        save_path = out_dir / f"clean_flip_vs_speedup_{str(method).lower()}.png"
+        plt.tight_layout(rect=[0, 0, 0.92, 1])
+        plt.savefig(save_path, dpi=180)
+        plt.close(fig)
 
 
-def save_figure(path: Path) -> None:
-    plt.tight_layout()
-    plt.savefig(path, dpi=180)
-    plt.close()
+def plot_grouped_bars(agg: pd.DataFrame, out_dir: Path) -> None:
+    methods = [m for m in sorted(agg["type"].dropna().unique()) if str(m).upper() in {"SG", "SV"}]
+    for method in methods:
+        mdf = agg[agg["type"].eq(method)].copy()
+        if mdf.empty:
+            continue
+        amounts = sorted(mdf["config_value"].dropna().unique())
+        thresholds = sorted(mdf["threshold"].dropna().unique())
+        if not amounts or not thresholds:
+            continue
+
+        x = np.arange(len(amounts))
+        width = 0.8 / max(1, len(thresholds))
+        cmap = plt.get_cmap("plasma")
+        ax_label = "lobes" if str(method).upper() == "SG" else "sites"
+        metric_specs = [
+            ("speedup", "Speedup", "{:.2f}"),
+            ("FLIP", "FLIP", "{:.5f}"),
+            ("culling", "Culling (%)", "{:.1f}"),
+        ]
+        for metric_key, ylabel, fmt in metric_specs:
+            fig, ax = plt.subplots(figsize=(8, 5))
+            bars_all = []
+            for j, thr in enumerate(thresholds):
+                vals = []
+                for amt in amounts:
+                    row = mdf[(mdf["config_value"].eq(amt)) & (mdf["threshold"].eq(thr))]
+                    vals.append(np.nan if row.empty else float(row[metric_key].mean()))
+                color = cmap(j / max(1, len(thresholds) - 1))
+                bars_all.append(ax.bar(x + j * width, vals, width=width, color=color, label=f"t={thr:g}"))
+
+            ax.set_xticks(x + width * (len(thresholds) - 1) / 2)
+            ax.set_xticklabels([str(int(a)) for a in amounts])
+            ax.set_xlabel(ax_label)
+            ax.set_ylabel(ylabel)
+            ax.set_title("")
+            ax.grid(axis="y", alpha=0.25)
+
+            # --- FIX: Force Vertical Y-axis to 100% for culling ---
+            if metric_key == "culling":
+                ax.set_ylim(0, 100)
+            # ------------------------------------------------------
+
+            rects = [r for bc in bars_all for r in bc]
+            _annotate_bars_generic(ax, rects, fmt, fontsize=8)
+            ax.legend(frameon=False)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            save_path = out_dir / f"clean_bar_{metric_key}_{str(method).lower()}.png"
+            plt.tight_layout()
+            plt.savefig(save_path, dpi=180)
+            plt.close(fig)
 
 
-def method_color(method: str) -> str:
-    return METHOD_COLORS.get(method, "#374151")
+def plot_culling_vs_scores(agg: pd.DataFrame, out_dir: Path, log_culling: bool = False) -> None:
+    methods = [m for m in sorted(agg["type"].dropna().unique()) if str(m).upper() in {"SG", "SV"}]
+    for method in methods:
+        mdf = agg[agg["type"].eq(method)].copy()
+        if mdf.empty:
+            continue
+
+        thresholds = sorted(mdf["threshold"].dropna().unique())
+        amounts = sorted(mdf["config_value"].dropna().unique())
+        if len(thresholds) == 0 or len(amounts) == 0:
+            continue
+
+        cmap = plt.get_cmap("viridis")
+        colors = cmap(np.linspace(0, 1, len(thresholds)))
+
+        # optional log scale for culling values if they cluster near zero
+        if log_culling:
+            nonzero_min = mdf["culling"][mdf["culling"] > 0].min()
+            eps = 1e-6 if np.isnan(nonzero_min) or nonzero_min <= 0 else float(nonzero_min) / 10.0
+            ax_s.set_xscale("log")
+            ax_f.set_xscale("log")
+        else:
+            eps = 0.0
+        metric_specs = [
+            ("speedup", "Speedup (scene-independent)", f"clean_culling_vs_speedup_{str(method).lower()}.png"),
+            ("FLIP", "FLIP", f"clean_culling_vs_flip_{str(method).lower()}.png"),
+        ]
+        for metric_key, ylabel, filename in metric_specs:
+            fig, ax = plt.subplots(figsize=(7.5, 5))
+            for i, thr in enumerate(thresholds):
+                thr_df = mdf[mdf["threshold"].eq(thr)].set_index("config_value").reindex(amounts)
+                x = thr_df["culling"].values.astype(float)
+                if log_culling:
+                    x = x + eps
+                y = thr_df[metric_key].values.astype(float)
+                valid = ~np.isnan(x) & ~np.isnan(y)
+                if not np.any(valid):
+                    continue
+                xv = x[valid]
+                yv = y[valid]
+                order = np.argsort(xv)
+                xv = xv[order]
+                yv = yv[order]
+                ax.plot(xv, yv, marker="o", color=colors[i], linewidth=2, label=f"t={thr:g}")
+                amt = np.array(amounts)[valid][order]
+                for xx, yy, aa in zip(xv, yv, amt):
+                    ax.annotate(str(int(aa)), (xx, yy), xytext=(4, 4), textcoords="offset points", fontsize=8)
+
+            ax.set_xlabel("Culling (%)")
+            ax.set_ylabel(ylabel)
+            ax.grid(True, alpha=0.25, which="both")
+            ax.legend(title="threshold", frameon=False, bbox_to_anchor=(1.02, 1), loc="upper left")
+            fig.suptitle("")
+            out_dir.mkdir(parents=True, exist_ok=True)
+            save_path = out_dir / filename
+            plt.tight_layout(rect=[0, 0, 0.92, 1])
+            plt.savefig(save_path, dpi=180)
+            plt.close(fig)
 
 
-def method_sort_key(method: str) -> tuple[int, str]:
-    order = {"BASELINE": 0, "SG": 1, "SV": 2}
-    return order.get(method, 99), method
+def _annotate_bars_generic(ax, rects, fmt="{:.2f}", fontsize=8):
+    for rect in rects:
+        try:
+            h = rect.get_height()
+        except Exception:
+            continue
+        if np.isnan(h):
+            continue
+        va = "bottom" if h >= 0 else "top"
+        ax.text(rect.get_x() + rect.get_width() / 2, h, fmt.format(h), ha="center", va=va, fontsize=fontsize)
 
 
-def plot_metric_vs_culled(data: pd.DataFrame, output_dir: Path, metric: str, ylabel: str) -> None:
-    datasets = sorted(data["dataset"].unique())
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9), sharex=False)
-    axes = axes.ravel()
-
-    for axis, dataset in zip(axes, datasets):
-        subset = data[data["dataset"].eq(dataset)]
-        for method in sorted(subset["type"].unique(), key=method_sort_key):
-            method_subset = subset[subset["type"].eq(method)]
-            grouped = (
-                method_subset.groupby("threshold", as_index=False)
-                .agg(
-                    culled_gaussians_percent=("culled_gaussians_percent", "mean"),
-                    metric=(metric, "mean"),
-                )
-                .sort_values("culled_gaussians_percent")
-            )
-            axis.plot(
-                grouped["culled_gaussians_percent"],
-                grouped["metric"],
-                marker="o",
-                linewidth=2,
-                color=method_color(method),
-                label=method,
-            )
-        axis.set_title(dataset)
-        axis.set_xlabel("Culled Gaussians (%)")
-        axis.set_ylabel(ylabel)
-        axis.grid(True, alpha=0.25)
-
-    for axis in axes[len(datasets) :]:
-        axis.axis("off")
-
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False)
-    fig.suptitle(f"{ylabel} vs Culling Amount", y=1.03, fontsize=15)
-    save_figure(output_dir / f"{metric.lower()}_vs_culled_percent.png")
-
-
-def plot_fps_vs_quality(data: pd.DataFrame, output_dir: Path) -> None:
-    datasets = sorted(data["dataset"].unique())
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-    axes = axes.ravel()
-
-    for axis, dataset in zip(axes, datasets):
-        subset = data[data["dataset"].eq(dataset)]
-        for method in sorted(subset["type"].unique(), key=method_sort_key):
-            method_subset = subset[subset["type"].eq(method)]
-            axis.scatter(
-                method_subset["FLIP"],
-                method_subset["avg_fps"],
-                s=25 + method_subset["culled_gaussians_percent"] * 1.8,
-                alpha=0.7,
-                color=method_color(method),
-                edgecolor="white",
-                linewidth=0.6,
-                label=method,
-            )
-        axis.axvline(QUALITY_FLIP_MAX, color="#111827", linestyle="--", linewidth=1)
-        axis.set_title(dataset)
-        axis.set_xlabel("FLIP (lower is better)")
-        axis.set_ylabel("Average FPS")
-        axis.grid(True, alpha=0.25)
-
-    for axis in axes[len(datasets) :]:
-        axis.axis("off")
-
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False)
-    fig.suptitle("Speed vs Visual Error (bubble size = culled %)", y=1.03, fontsize=15)
-    save_figure(output_dir / "fps_vs_flip_tradeoff.png")
-
-
-def plot_speedup_vs_quality(data: pd.DataFrame, output_dir: Path) -> None:
-    if "fps_speedup_vs_baseline" not in data.columns:
-        return
-
-    datasets = sorted(data["dataset"].unique())
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-    axes = axes.ravel()
-
-    for axis, dataset in zip(axes, datasets):
-        subset = data[data["dataset"].eq(dataset)]
-        for method in sorted(subset["type"].unique(), key=method_sort_key):
-            method_subset = subset[subset["type"].eq(method)]
-            axis.scatter(
-                method_subset["FLIP"],
-                method_subset["fps_speedup_vs_baseline"],
-                s=35 + method_subset["culled_gaussians_percent"] * 1.8,
-                alpha=0.75,
-                color=method_color(method),
-                edgecolor="white",
-                linewidth=0.6,
-                label=method,
-            )
-        axis.axhline(1.0, color="#111827", linestyle="--", linewidth=1)
-        axis.axvline(QUALITY_FLIP_MAX, color="#6b7280", linestyle=":", linewidth=1)
-        axis.set_title(dataset)
-        axis.set_xlabel("FLIP (lower is better)")
-        axis.set_ylabel("FPS speedup vs no culling")
-        axis.grid(True, alpha=0.25)
-
-    for axis in axes[len(datasets) :]:
-        axis.axis("off")
-
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False)
-    fig.suptitle("Speedup vs Visual Error (baseline = 1.0)", y=1.03, fontsize=15)
-    save_figure(output_dir / "speedup_vs_flip_tradeoff.png")
-
-
-def plot_threshold_curves(data: pd.DataFrame, output_dir: Path) -> None:
-    datasets = sorted(data["dataset"].unique())
-    for dataset in datasets:
-        subset = data[data["dataset"].eq(dataset) & data["type"].isin(["SG", "SV"])]
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True)
-        for method in sorted(subset["type"].unique(), key=method_sort_key):
-            method_subset = subset[subset["type"].eq(method)]
-            for config_label, config_subset in method_subset.groupby("config_label"):
-                label = f"{method} {config_label}"
-                alpha = 0.8 if method == "SG" else 0.65
-                axes[0].plot(
-                    config_subset["threshold"],
-                    config_subset["avg_fps"],
-                    marker="o",
-                    linewidth=1.8,
-                    label=label,
-                    color=method_color(method),
-                    alpha=alpha,
-                )
-                axes[1].plot(
-                    config_subset["threshold"],
-                    config_subset["FLIP"],
-                    marker="o",
-                    linewidth=1.8,
-                    label=label,
-                    color=method_color(method),
-                    alpha=alpha,
-                )
-
-        axes[0].set_title("FPS by threshold")
-        axes[0].set_ylabel("Average FPS")
-        axes[1].set_title("FLIP by threshold")
-        axes[1].set_ylabel("FLIP (lower is better)")
-        for axis in axes:
-            axis.set_xlabel("Inference threshold")
-            axis.grid(True, alpha=0.25)
-        axes[1].axhline(QUALITY_FLIP_MAX, color="#111827", linestyle="--", linewidth=1)
-        handles, labels = axes[0].get_legend_handles_labels()
-        fig.legend(handles, labels, loc="upper center", ncol=3, frameon=False)
-        fig.suptitle(f"{dataset}: Threshold Sensitivity", y=1.08, fontsize=15)
-        save_figure(output_dir / f"{dataset}_threshold_sensitivity.png")
-
-
-def plot_quality_preserving_best(data: pd.DataFrame, output_dir: Path) -> pd.DataFrame:
-    filtered = data[data["quality_preserving"]].copy()
-    best = (
-        filtered.sort_values(
-            ["dataset", "type", "avg_fps", "culled_gaussians_percent", "SSIM"],
-            ascending=[True, True, False, False, False],
-        )
-        .groupby(["dataset", "type"], as_index=False)
-        .head(1)
-        .sort_values(["dataset", "type"])
-    )
-
-    best.to_csv(output_dir / "best_quality_preserving_configs.csv", index=False)
-
-    if best.empty:
-        return best
-
-    labels = sorted(best["dataset"].unique())
-    x_positions = np.arange(len(labels))
-    width = 0.36
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    for offset, method in [(-width / 2, "SG"), (width / 2, "SV")]:
-        method_best = best[best["type"].eq(method)].set_index("dataset").reindex(labels)
-        axes[0].bar(
-            x_positions + offset,
-            method_best["avg_fps"],
-            width,
-            label=method,
-            color=method_color(method),
-        )
-        axes[1].bar(
-            x_positions + offset,
-            method_best["culled_gaussians_percent"],
-            width,
-            label=method,
-            color=method_color(method),
-        )
-
-    axes[0].set_title("Fastest config that keeps quality")
-    axes[0].set_ylabel("Average FPS")
-    axes[1].set_title("Culling reached while keeping quality")
-    axes[1].set_ylabel("Culled Gaussians (%)")
-    for axis in axes:
-        axis.set_xticks(x_positions)
-        axis.set_xticklabels(labels)
-        axis.grid(axis="y", alpha=0.25)
-        axis.legend(frameon=False)
-
-    fig.suptitle(
-        f"Quality-preserving configs (SSIM >= {QUALITY_SSIM_MIN}, FLIP <= {QUALITY_FLIP_MAX})",
-        y=1.03,
-        fontsize=15,
-    )
-    save_figure(output_dir / "best_quality_preserving_configs.png")
-    return best
-
-
-def pareto_front(group: pd.DataFrame) -> pd.DataFrame:
-    candidates = group.sort_values(
-        ["FLIP", "avg_fps", "culled_gaussians_percent"],
-        ascending=[True, False, False],
-    )
-    front_rows = []
-    best_fps = -np.inf
-    best_culled = -np.inf
-    for _, row in candidates.iterrows():
-        if row["avg_fps"] > best_fps or row["culled_gaussians_percent"] > best_culled:
-            front_rows.append(row)
-            best_fps = max(best_fps, row["avg_fps"])
-            best_culled = max(best_culled, row["culled_gaussians_percent"])
-    if not front_rows:
-        return candidates.head(0)
-    return pd.DataFrame(front_rows)
-
-
-def write_pareto_outputs(data: pd.DataFrame, output_dir: Path) -> pd.DataFrame:
-    fronts = []
-    for (dataset, method), group in data.groupby(["dataset", "type"]):
-        front = pareto_front(group).copy()
-        front["dataset"] = dataset
-        front["type"] = method
-        fronts.append(front)
-    pareto = pd.concat(fronts, ignore_index=True) if fronts else data.head(0)
-    pareto.to_csv(output_dir / "pareto_front_configs.csv", index=False)
-
-    datasets = sorted(data["dataset"].unique())
-    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
-    axes = axes.ravel()
-    for axis, dataset in zip(axes, datasets):
-        subset = pareto[pareto["dataset"].eq(dataset)]
-        for method in sorted(subset["type"].unique()):
-            method_subset = subset[subset["type"].eq(method)].sort_values("FLIP")
-            axis.plot(
-                method_subset["FLIP"],
-                method_subset["avg_fps"],
-                marker="o",
-                linewidth=2,
-                color=method_color(method),
-                label=method,
-            )
-        axis.set_title(dataset)
-        axis.set_xlabel("FLIP (lower is better)")
-        axis.set_ylabel("Average FPS")
-        axis.grid(True, alpha=0.25)
-
-    for axis in axes[len(datasets) :]:
-        axis.axis("off")
-
-    handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper center", ncol=2, frameon=False)
-    fig.suptitle("Pareto Front: Best Speed / Error Trade-offs", y=1.03, fontsize=15)
-    save_figure(output_dir / "pareto_front_fps_vs_flip.png")
-    return pareto
-
-
-def write_overall_summaries(data: pd.DataFrame, output_dir: Path) -> pd.DataFrame:
-    summary_aggs = {
-        "rows": ("type", "size"),
-        "mean_fps": ("avg_fps", "mean"),
-        "max_fps": ("avg_fps", "max"),
-        "mean_culled_percent": ("culled_gaussians_percent", "mean"),
-        "max_culled_percent": ("culled_gaussians_percent", "max"),
-        "mean_ssim": ("SSIM", "mean"),
-        "min_ssim": ("SSIM", "min"),
-        "mean_flip": ("FLIP", "mean"),
-        "max_flip": ("FLIP", "max"),
-        "quality_preserving_rows": ("quality_preserving", "sum"),
-    }
-    overall_aggs = {
-        "rows": ("type", "size"),
-        "mean_fps": ("avg_fps", "mean"),
-        "max_fps": ("avg_fps", "max"),
-        "mean_culled_percent": ("culled_gaussians_percent", "mean"),
-        "max_culled_percent": ("culled_gaussians_percent", "max"),
-        "mean_ssim": ("SSIM", "mean"),
-        "mean_flip": ("FLIP", "mean"),
-        "quality_preserving_rows": ("quality_preserving", "sum"),
-    }
-    if "fps_speedup_vs_baseline" in data.columns:
-        summary_aggs["mean_speedup_vs_baseline"] = ("fps_speedup_vs_baseline", "mean")
-        summary_aggs["max_speedup_vs_baseline"] = ("fps_speedup_vs_baseline", "max")
-        overall_aggs["mean_speedup_vs_baseline"] = ("fps_speedup_vs_baseline", "mean")
-        overall_aggs["max_speedup_vs_baseline"] = ("fps_speedup_vs_baseline", "max")
-
-    summary = (
-        data.groupby(["dataset", "type"], as_index=False)
-        .agg(**summary_aggs)
-        .sort_values(["dataset", "type"])
-    )
-    summary.to_csv(output_dir / "method_summary_by_dataset.csv", index=False)
-
-    overall = (
-        data.groupby("type", as_index=False)
-        .agg(**overall_aggs)
-        .sort_values("type")
-    )
-    overall.to_csv(output_dir / "method_summary_overall.csv", index=False)
-
-    metric_specs = [
-        ("mean_fps", "Mean speed", "Average FPS"),
-        ("mean_culled_percent", "Mean culling", "Culled Gaussians (%)"),
-        ("mean_flip", "Mean visual error", "FLIP"),
-    ]
-    if "mean_speedup_vs_baseline" in overall.columns:
-        metric_specs.insert(1, ("mean_speedup_vs_baseline", "Mean speedup", "FPS / baseline"))
-
-    fig, axes = plt.subplots(1, len(metric_specs), figsize=(4.8 * len(metric_specs), 5))
-    axes = np.atleast_1d(axes)
-    for axis, (metric, title, ylabel) in zip(axes, metric_specs):
-        axis.bar(
-            overall["type"],
-            overall[metric],
-            color=[method_color(method) for method in overall["type"]],
-        )
-        axis.set_title(title)
-        axis.set_ylabel(ylabel)
-        axis.grid(axis="y", alpha=0.25)
-
-    fig.suptitle("Overall SG vs SV Summary", y=1.03, fontsize=15)
-    save_figure(output_dir / "overall_method_summary.png")
-    return summary
-
-
-def write_recommendations(data: pd.DataFrame, output_dir: Path) -> pd.DataFrame:
-    rows = []
-    culling_data = data[data["type"].isin(["SG", "SV"])].copy()
-    for dataset, dataset_group in culling_data.groupby("dataset"):
-        quality_group = dataset_group[dataset_group["quality_preserving"]]
-        source = quality_group if not quality_group.empty else dataset_group
-        for method, method_group in source.groupby("type"):
-            best = method_group.sort_values(
-                ["utility_score", "avg_fps", "culled_gaussians_percent"],
-                ascending=[False, False, False],
-            ).iloc[0]
-            rows.append(
-                {
-                    "dataset": dataset,
-                    "type": method,
-                    "threshold": best["threshold"],
-                    "config_label": best["config_label"],
-                    "avg_fps": best["avg_fps"],
-                    "culled_gaussians_percent": best["culled_gaussians_percent"],
-                    "SSIM": best["SSIM"],
-                    "FLIP": best["FLIP"],
-                    "quality_preserving": bool(best["quality_preserving"]),
-                    "utility_score": best["utility_score"],
-                    "baseline_avg_fps": best.get("baseline_avg_fps", np.nan),
-                    "fps_speedup_vs_baseline": best.get("fps_speedup_vs_baseline", np.nan),
-                    "fps_percent_change_vs_baseline": best.get("fps_percent_change_vs_baseline", np.nan),
-                }
-            )
-
-    recommendations = pd.DataFrame(rows).sort_values(["dataset", "type"])
-    recommendations.to_csv(output_dir / "recommended_configs.csv", index=False)
-    return recommendations
-
-
-def main() -> None:
+def main():
     args = parse_args()
-    global QUALITY_SSIM_MIN, QUALITY_FLIP_MAX
-    QUALITY_SSIM_MIN = args.ssim_min
-    QUALITY_FLIP_MAX = args.flip_max
-
-    ensure_output_dir(args.out)
-    data = load_results(args.csv)
-    data.to_csv(args.out / "cleaned_model_performance_summary.csv", index=False)
-
-    write_overall_summaries(data, args.out)
-    plot_metric_vs_culled(data, args.out, "avg_fps", "Average FPS")
-    if "fps_speedup_vs_baseline" in data.columns:
-        plot_metric_vs_culled(
-            data,
-            args.out,
-            "fps_speedup_vs_baseline",
-            "FPS speedup vs no culling",
-        )
-    plot_metric_vs_culled(data, args.out, "SSIM", "SSIM (higher is better)")
-    plot_metric_vs_culled(data, args.out, "FLIP", "FLIP (lower is better)")
-    plot_fps_vs_quality(data, args.out)
-    plot_speedup_vs_quality(data, args.out)
-    plot_threshold_curves(data, args.out)
-    plot_quality_preserving_best(data, args.out)
-    write_pareto_outputs(data, args.out)
-    write_recommendations(data, args.out)
-
-    print(f"Wrote culling analysis results to: {args.out.resolve()}")
+    out_dir = args.out
+    df = load_data(args.csv)
+    agg = aggregate_for_plotting(df)
+    
+    # Bug opgelost: log_flip wordt nu correct berekend en doorgegeven
+    log_flip = not args.linear_flip
+    plot_flip_vs_speedup(agg, out_dir, log_flip=log_flip)
+    plot_grouped_bars(agg, out_dir)
+    plot_culling_vs_scores(agg, out_dir, log_culling=False)
+    print(f"Wrote plots to: {out_dir.resolve()}")
 
 
 if __name__ == "__main__":

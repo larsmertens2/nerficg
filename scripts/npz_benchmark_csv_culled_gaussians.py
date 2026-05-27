@@ -95,7 +95,7 @@ def has_values(row, columns):
 
 
 def benchmark_thresholds():
-    return [round(step / 10, 1) for step in range(1, 10)]
+    return [0.4]
 
 
 def threshold_dir_name(threshold_value: float):
@@ -179,22 +179,26 @@ def main():
         "base_model_dir",
     ]
     culling_columns = ["mean_culled_gaussians", "culled_gaussians_percent"]
-    key_fields = ["dataset", "type", "model_file", "threshold", "lobes", "sites"]
     
-    # 1. Initialisatie van fieldnames en bestaande data
-    # We laden de headers in om de kolomvolgorde te behouden
+    # 1. Laad bestaande rijen en headers in
     rows, fieldnames = load_csv_rows(output_csv)
-    fieldnames = ensure_columns(fieldnames, base_columns + culling_columns)
     
-    # Zorg dat de CSV bestaat en de juiste headers heeft voordat we beginnen
+    # Zorg dat de master-fieldnames alle mogelijke kolommen bevatten voor NIEUWE rijen
+    extended_fieldnames = ensure_columns(fieldnames, base_columns + culling_columns)
+    
     if not output_csv.exists() or output_csv.stat().st_size == 0:
-        write_csv_rows(output_csv, fieldnames, rows)
+        write_csv_rows(output_csv, extended_fieldnames, rows)
         print(f">>> Nieuw CSV bestand aangemaakt met headers: {output_csv}")
-    else:
-        write_csv_rows(output_csv, fieldnames, rows)
 
-    rows_by_key = {make_row_key(row, key_fields): row for row in rows}
-    threshold_values = benchmark_thresholds()
+    # Groepeer bestaande rijen op basis van model-eigenschappen
+    npz_groups = {}
+    for row in rows:
+        npz_key = (row.get("dataset"), row.get("type"), row.get("model_file"), str(row.get("lobes")), str(row.get("sites")))
+        if npz_key not in npz_groups:
+            npz_groups[npz_key] = []
+        npz_groups[npz_key].append(row)
+
+    default_thresholds = benchmark_thresholds()
 
     # Alle NPZ bestanden verzamelen
     all_npz = []
@@ -208,48 +212,62 @@ def main():
         test_type = next((part for part in npz_path.parts if part.upper() in {"SG", "SV"}), None)
         
         if not test_type:
-            print(f"\n>>> Overslaan: kan SG/SV type niet bepalen voor {npz_path}")
             continue
 
         lobes, sites = parse_lobes_and_sites(npz_path)
         model_dir = npz_path.parent
-
-        print(f"\n>>> VERWERKEN: {npz_path.name}")
         
-        config_source = find_matching_config(dataset_name)
-        if not config_source:
-            print(f"    Skipping: Geen basis model gevonden voor {dataset_name}")
-            continue
-            
-        base_dir = config_source.parent
+        npz_key = (dataset_name, test_type.upper(), npz_path.name, str(lobes), str(sites))
+        existing_rows_for_npz = npz_groups.get(npz_key, [])
 
-        # Laad de context (model en renderer)
-        configure_env_for_npz(npz_path, test_type)
-        dataset, model, renderer = load_benchmark_context(base_dir, npz_path, test_type)
-        benchmark_views, _ = get_benchmark_views(dataset)
-        
-        total_gaussians = int(model.gaussians.means.shape[0]) if model.gaussians is not None else 0
+        thresholds_to_run = []
+        if existing_rows_for_npz:
+            for r in existing_rows_for_npz:
+                try:
+                    t_val = float(r.get("threshold", 0.4))
+                    thresholds_to_run.append((t_val, r))
+                except ValueError:
+                    continue
+        else:
+            for t_val in default_thresholds:
+                thresholds_to_run.append((t_val, None))
 
-        for threshold_value in threshold_values:
+        context_loaded = False
+        dataset, model, renderer, benchmark_views, total_gaussians = None, None, None, None, 0
+
+        for threshold_value, existing_row in thresholds_to_run:
             threshold_csv_value = f"{threshold_value:g}"
             
-            row_key = (dataset_name, test_type.upper(), npz_path.name, threshold_csv_value, str(lobes), str(sites))
-            existing_row = rows_by_key.get(row_key)
+            # Controleer scherp of culling kolommen écht tekst bevatten (en niet leeg/Spaties zijn)
             if existing_row and has_values(existing_row, culling_columns):
-                print(f"    Slaan over: Threshold {threshold_csv_value} heeft al culling-resultaten.")
+                print(f"    Slaan over: Threshold {threshold_csv_value} voor {npz_path.name} heeft al culling-resultaten.")
                 continue
 
-            # Renderer instellen en berekenen
+            print(f"\n>>> VERWERKEN: {npz_path.name} (Threshold: {threshold_csv_value})")
+
+            config_source = find_matching_config(dataset_name)
+            if not config_source:
+                print(f"    Skipping: Geen basis model gevonden voor {dataset_name}")
+                continue
+                
+            base_dir = config_source.parent
+
+            if not context_loaded:
+                configure_env_for_npz(npz_path, test_type)
+                dataset, model, renderer = load_benchmark_context(base_dir, npz_path, test_type)
+                benchmark_views, _ = get_benchmark_views(dataset)
+                total_gaussians = int(model.gaussians.means.shape[0]) if model.gaussians is not None else 0
+                context_loaded = True
+
             renderer.SG_THRESHOLD = threshold_value
             renderer.SV_THRESHOLD = threshold_value
             renderer.USE_SG = (test_type.upper() == "SG")
             renderer.USE_SV = (test_type.upper() == "SV")
 
-            print(f"    Berekenen culling voor threshold: {threshold_csv_value}...")
+            print(f"    Berekenen culling...")
             mean_culled = compute_mean_culled_gaussians(renderer, benchmark_views)
             percent_culled = (mean_culled / total_gaussians * 100.0) if total_gaussians > 0 else 0.0
 
-            # Maak de rij dictionary
             new_row = {
                 "dataset": dataset_name,
                 "type": test_type.upper(),
@@ -265,13 +283,13 @@ def main():
 
             if existing_row:
                 existing_row.update(new_row)
-                print(f"    [OK] Bestaande CSV-rij bijgewerkt in {output_csv}")
+                print(f"    [OK] Bestaande CSV-rij bijgewerkt.")
             else:
                 rows.append(new_row)
-                rows_by_key[row_key] = new_row
-                print(f"    [OK] Nieuwe CSV-rij toegevoegd aan {output_csv}")
+                print(f"    [OK] Nieuwe CSV-rij toegevoegd.")
             
-            write_csv_rows(output_csv, fieldnames, rows)
+            # Schrijf de update direct weg met de complete header-set
+            write_csv_rows(output_csv, extended_fieldnames, rows)
 
     print(f"\nKlaar! Alle resultaten zijn opgeslagen in {output_csv}")
 

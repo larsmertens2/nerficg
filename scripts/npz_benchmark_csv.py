@@ -110,7 +110,7 @@ def build_env_for_npz(npz_path: Path, test_type: str):
 
 
 def benchmark_thresholds():
-    return [round(step / 10, 1) for step in range(1, 10)]
+    return [0.05,0.5]
 
 
 def threshold_dir_name(threshold_value: float):
@@ -138,7 +138,7 @@ def main():
     for p in root_test_dir.rglob("*.npz"):
         parts = [part.upper() for part in p.parts]
         if "SG" in parts or "SV" in parts:
-            if "camera_data" not in p.name:
+            if ("camera_data" and 'gaussians_atlas') not in p.name:
                 all_npz.append(p)
 
     for npz_path in all_npz:
@@ -194,7 +194,7 @@ def main():
 
             fps_list = []
             for i in range(2):
-                print(f"    Benchmark run {i+1}/3 voor threshold {threshold_csv_value}...")
+                print(f"    Benchmark run {i+1}/2 voor threshold {threshold_csv_value}...")
                 benchmark_result = subprocess.run([
                     sys.executable, "scripts/inference.py",
                     "-d", str(base_dir),
